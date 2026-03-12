@@ -1,0 +1,19 @@
+{
+  "name": "mysql-perf-web-server",
+  "version": "1.0.0",
+  "description": "Web API server for MySQL Performance Tester",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.0.0",
+    "helmet": "^8.0.0",
+    "ws": "^8.16.0",
+    "dotenv": "^16.0.0"
+  }
+}

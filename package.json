@@ -1,0 +1,60 @@
+{
+  "name": "mysql-performance-tester",
+  "version": "1.0.0",
+  "description": "Comprehensive MySQL Performance Testing Tool",
+  "type": "module",
+  "main": "./lib/index.js",
+  "bin": {
+    "mysql-perf-test": "./cli/index.js"
+  },
+  "exports": {
+    ".": "./lib/index.js",
+    "./main": "./lib/main.js",
+    "./config": "./lib/config/index.js",
+    "./core": "./lib/core/index.js",
+    "./testers": "./lib/testers/index.js",
+    "./analyzers": "./lib/analyzers/index.js",
+    "./reports": "./lib/reports/index.js",
+    "./statistics": "./lib/statistics/index.js",
+    "./utils": "./lib/utils/index.js",
+    "./models": "./lib/models/index.js"
+  },
+  "scripts": {
+    "start": "node cli/index.js run",
+    "test": "node cli/index.js demo",
+    "test:demo": "node cli/index.js demo",
+    "test:parallel": "node cli/index.js parallel",
+    "help": "node cli/index.js help"
+  },
+  "keywords": [
+    "mysql",
+    "performance",
+    "benchmark",
+    "testing",
+    "database",
+    "percentile",
+    "load-testing",
+    "esm",
+    "performance-testing",
+    "query-optimization",
+    "mysql8",
+    "nodejs",
+    "modular-architecture"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "mysql2": "^3.6.0"
+  },
+  "devDependencies": {
+    "dotenv": "^16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nok0321/mysql-performance-tester.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nok0321/mysql-performance-tester.git/issues"
+  }
+}
