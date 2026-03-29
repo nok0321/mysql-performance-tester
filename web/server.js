@@ -14,21 +14,9 @@ import { fileURLToPath } from 'url';
 const __serverDir = dirname(fileURLToPath(import.meta.url));
 loadEnv({ path: resolve(__serverDir, '..', '.env') });
 
-// ─── 起動前セキュリティチェック ───────────────────────────────────────────
-const _ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
-if (!_ENCRYPTION_KEY) {
-    console.error('[Security] ENCRYPTION_KEY が設定されていません。起動を中止します。');
-    console.error('  .env ファイルに以下を追加してください:');
-    console.error('  ENCRYPTION_KEY=<32文字以上のランダム文字列>');
-    process.exit(1);
-}
-// ENCRYPTION_KEY 最低強度チェック（H3対応）
-const MIN_KEY_LENGTH = 32;
-if (_ENCRYPTION_KEY.length < MIN_KEY_LENGTH) {
-    console.error(`[Security] ENCRYPTION_KEY が短すぎます（現在 ${_ENCRYPTION_KEY.length} 文字、最低 ${MIN_KEY_LENGTH} 文字必要）。`);
-    console.error('  openssl rand -base64 32 などで生成した強いキーを使用してください。');
-    process.exit(1);
-}
+// ─── 起動前バリデーション ────────────────────────────────────────────────
+import { validateEnv } from './middleware/env-validator.js';
+validateEnv();
 
 import { createServer } from 'http';
 import express from 'express';
@@ -41,6 +29,7 @@ import connectionsRouter from './routes/connections.js';
 import sqlLibraryRouter from './routes/sql-library.js';
 import testsRouter from './routes/tests.js';
 import reportsRouter from './routes/reports.js';
+import { errorHandler } from './middleware/error-handler.js';
 
 const PORT = process.env.WEB_PORT || 3001;
 const app = express();
@@ -49,8 +38,17 @@ const app = express();
 
 // セキュリティヘッダー（M1対応）
 // localhost 専用ツールだが将来的な公開に備えて helmet を適用する。
-// contentSecurityPolicy は Web UI の動的スクリプトを壊さないよう無効化。
-app.use(helmet({ contentSecurityPolicy: false }));
+// この API サーバーは JSON のみを返すため、CSP は API レスポンス向けに最小限に設定する。
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc:  ["'none'"],
+      objectSrc:  ["'none'"],
+      frameAncestors: ["'none'"],
+    }
+  }
+}));
 
 app.use(cors({
   origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
@@ -90,6 +88,8 @@ const LOCALHOST_ADDRS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 wss.on('connection', (ws, req) => {
   const clientIp = req.socket.remoteAddress;
 
+  // TODO: リモートアクセスを許可する場合はトークンベースの認証を実装する
+  //   例: ws://host:port?token=xxx → req.url からトークンを検証
   // localhost 以外からの WebSocket 接続を拒否
   if (!LOCALHOST_ADDRS.has(clientIp)) {
     console.warn(`[WS] Rejected non-localhost connection from: ${clientIp}`);
@@ -148,10 +148,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // ─── エラーハンドラー ─────────────────────────────────────────────────────
-app.use((err, req, res, _next) => {
-  console.error('[API Error]', err);
-  res.status(500).json({ success: false, error: 'サーバーエラーが発生しました' });
-});
+app.use(errorHandler);
 
 // ─── 起動 ─────────────────────────────────────────────────────────────────
 httpServer.listen(PORT, () => {
