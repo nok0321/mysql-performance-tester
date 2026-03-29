@@ -1,54 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { connectionsApi, sqlApi, testsApi } from '../api/client';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Cell
+  Tooltip, ResponsiveContainer
 } from 'recharts';
-
-/** グレードに応じた色を返す */
-function gradeColor(grade) {
-  if (!grade) return 'var(--color-text-muted)';
-  if (grade.startsWith('A+')) return 'var(--grade-a-plus)';
-  if (grade.startsWith('A')) return 'var(--grade-a)';
-  if (grade.startsWith('B')) return 'var(--grade-b)';
-  if (grade.startsWith('C')) return 'var(--grade-c)';
-  return 'var(--grade-d)';
-}
-
-/** パーセンタイルテーブル */
-function PercentilesTable({ percentiles }) {
-  if (!percentiles) return null;
-  const rows = [
-    ['P1', percentiles.p01],
-    ['P5', percentiles.p05],
-    ['P10', percentiles.p10],
-    ['P25', percentiles.p25],
-    ['P50 (中央値)', percentiles.p50],
-    ['P75', percentiles.p75],
-    ['P90', percentiles.p90],
-    ['P95 ⭐', percentiles.p95],
-    ['P99', percentiles.p99],
-    ['P99.9', percentiles.p999],
-  ];
-
-  return (
-    <div className="table-wrap">
-      <table>
-        <thead><tr><th>パーセンタイル</th><th>レイテンシ (ms)</th></tr></thead>
-        <tbody>
-          {rows.map(([label, val]) => (
-            <tr key={label}>
-              <td>{label}</td>
-              <td className="font-mono" style={{ color: label.includes('⭐') ? 'var(--color-accent)' : undefined }}>
-                {val ?? '-'}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+import StatCardsGrid from '../components/StatCardsGrid';
+import ProgressBar from '../components/ProgressBar';
+import PercentilesTable from '../components/PercentilesTable';
+import useTestExecution from '../hooks/useTestExecution';
 
 /** レイテンシ分布ヒストグラム */
 function HistogramChart({ distribution }) {
@@ -119,10 +78,9 @@ export default function SingleTest({ wsMessages, subscribeTestId }) {
   const [connections, setConnections] = useState([]);
   const [sqlItems, setSqlItems] = useState([]);
 
-  // 設定フォーム
   const [form, setForm] = useState({
     connectionId: '',
-    sqlMode: 'library', // 'library' | 'direct'
+    sqlMode: 'library',
     sqlId: '',
     sqlText: '',
     testName: 'Web UI Test',
@@ -138,33 +96,8 @@ export default function SingleTest({ wsMessages, subscribeTestId }) {
   });
   const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  // 実行状態
-  const [runState, setRunState] = useState(null); // null | 'running' | 'complete' | 'error'
-  const [currentTestId, setCurrentTestId] = useState(null);
-  const [progress, setProgress] = useState({ phase: '', current: 0, total: 0, duration: null });
-  const [result, setResult] = useState(null);
-  const [errorMsg, setErrorMsg] = useState('');
+  const { run, dispatch, setCurrentTestId } = useTestExecution(wsMessages);
   const [activeTab, setActiveTab] = useState('stats');
-
-  // WebSocket メッセージを監視
-  // wsMessages や currentTestId のどちらが後から更新されても过去分をすべてスキャンする
-  useEffect(() => {
-    if (!currentTestId || !wsMessages.length) return;
-    // 当該 testId のメッセージを全件収集（レースコンディション対策）
-    const relevant = wsMessages.filter(m => m.testId === currentTestId);
-    if (!relevant.length) return;
-    // 最後の有効メッセージだけ反映
-    const last = relevant[relevant.length - 1];
-    if (last.type === 'progress') {
-      setProgress(last.data);
-    } else if (last.type === 'complete') {
-      setRunState('complete');
-      setResult(last.data.result);
-    } else if (last.type === 'error') {
-      setRunState('error');
-      setErrorMsg(last.data.message);
-    }
-  }, [wsMessages, currentTestId]);
 
   useEffect(() => {
     connectionsApi.list().then(setConnections).catch(() => { });
@@ -176,30 +109,22 @@ export default function SingleTest({ wsMessages, subscribeTestId }) {
       ? (sqlItems.find(s => s.id === form.sqlId)?.sql || '')
       : form.sqlText;
 
-    if (!form.connectionId) return setErrorMsg('接続先を選択してください');
-    if (!sqlText.trim()) return setErrorMsg('SQL を入力または選択してください');
+    if (!form.connectionId) return dispatch({ type: 'error', data: { message: '接続先を選択してください' } });
+    if (!sqlText.trim()) return dispatch({ type: 'error', data: { message: 'SQL を入力または選択してください' } });
 
-    setErrorMsg('');
-    setResult(null);
+    dispatch({ type: 'start', progress: { phase: 'starting', current: 0, total: form.testIterations, duration: null } });
     setCurrentTestId(null);
-    setRunState('running');
-    setProgress({ phase: 'starting', current: 0, total: form.testIterations, duration: null });
 
     try {
-      // サーバーが生成した testId を受け取り、WebSocket フィルタに使う
-      // setImmediate で実際のテスト開始はレスポンス返却後のため
-      // HTTP レスポンスの testId が WS メッセージより先に届く
       const { testId } = await testsApi.runSingle({ ...form, sqlText });
       setCurrentTestId(testId);
       subscribeTestId?.(testId);
     } catch (e) {
-      setRunState('error');
-      setErrorMsg(e.message);
+      dispatch({ type: 'error', data: { message: e.message } });
     }
   };
 
-  const stats = result?.statistics;
-  const progressPct = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
+  const stats = run.result?.statistics;
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 'var(--space-5)', alignItems: 'start' }}>
@@ -287,56 +212,42 @@ export default function SingleTest({ wsMessages, subscribeTestId }) {
         )}
 
         <button className="btn btn-primary btn-lg" style={{ width: '100%' }}
-          onClick={handleRun} disabled={runState === 'running'}>
-          {runState === 'running' ? <><span className="spinner" /> 測定中...</> : '▶ テスト実行'}
+          onClick={handleRun} disabled={run.runState === 'running'}>
+          {run.runState === 'running' ? <><span className="spinner" /> 測定中...</> : '▶ テスト実行'}
         </button>
 
-        {errorMsg && <div className="alert alert-error mt-4">⚠ {errorMsg}</div>}
+        {run.errorMsg && <div className="alert alert-error mt-4">⚠ {run.errorMsg}</div>}
       </div>
 
       {/* ─── 結果パネル ─── */}
       <div>
         {/* 進捗 */}
-        {(runState === 'running') && (
-          <div className="card mb-4 fade-in">
-            <div className="flex items-center justify-between mb-4">
-              <span className="card-title">
-                {progress.phase === 'warmup' ? '🔥 ウォームアップ中...' : '📊 測定中...'}
-              </span>
-              <span className="text-muted text-sm">{progress.current}/{progress.total} 回</span>
-            </div>
-            <div className="progress-wrap">
-              <div className="progress-bar" style={{ width: `${progressPct}%` }} />
-            </div>
-            <div className="progress-info">
-              <span>{progressPct}%</span>
-              {progress.duration != null && <span>直近: {progress.duration?.toFixed(2)} ms</span>}
-            </div>
-          </div>
+        {run.runState === 'running' && (
+          <ProgressBar
+            current={run.progress.current}
+            total={run.progress.total}
+            label={run.progress.phase === 'warmup' ? '🔥 ウォームアップ中...' : '📊 測定中...'}
+          >
+            {run.progress.duration != null && (
+              <div className="text-muted text-sm" style={{ marginTop: 4 }}>
+                直近: {run.progress.duration?.toFixed(2)} ms
+              </div>
+            )}
+          </ProgressBar>
         )}
 
         {/* サマリー統計カード */}
         {stats && (
-          <div className="card-grid card-grid-4 mb-4 fade-in">
-            {[
-              { label: '平均', value: stats.basic?.mean, unit: 'ms' },
-              { label: 'P95', value: stats.percentiles?.p95, unit: 'ms', highlight: true },
-              { label: 'P99', value: stats.percentiles?.p99, unit: 'ms' },
-              { label: '変動係数 (CV)', value: stats.spread?.cv, unit: '%' },
-            ].map(s => (
-              <div key={s.label} className="stat-card">
-                <div className="stat-label">{s.label}</div>
-                <div className="stat-value" style={{ color: s.highlight ? 'var(--color-accent)' : undefined }}>
-                  {s.value ?? '-'}
-                  <span className="stat-unit">{s.unit}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+          <StatCardsGrid items={[
+            { label: '平均', value: stats.basic?.mean, unit: 'ms' },
+            { label: 'P95', value: stats.percentiles?.p95, unit: 'ms', highlight: true },
+            { label: 'P99', value: stats.percentiles?.p99, unit: 'ms' },
+            { label: '変動係数 (CV)', value: stats.spread?.cv, unit: '%' },
+          ]} />
         )}
 
         {/* 詳細タブ */}
-        {result && (
+        {run.result && (
           <div className="card fade-in">
             <div className="tabs">
               {[['stats', '📊 統計'], ['histogram', '📈 分布'], ['explain', '🔍 EXPLAIN'], ['recommend', '💡 推奨']].map(([id, label]) => (
@@ -394,16 +305,16 @@ export default function SingleTest({ wsMessages, subscribeTestId }) {
             )}
 
             {activeTab === 'explain' && (
-              <ExplainPanel explain={result.explainAnalyze} />
+              <ExplainPanel explain={run.result.explainAnalyze} />
             )}
 
             {activeTab === 'recommend' && (
-              <RecommendPanel plan={result.explainAnalyze?.queryPlan} />
+              <RecommendPanel plan={run.result.explainAnalyze?.queryPlan} />
             )}
           </div>
         )}
 
-        {!result && !runState && (
+        {!run.result && !run.runState && (
           <div className="empty-state">
             <div className="empty-icon">▶</div>
             <p>左のパネルで設定してテストを実行してください</p>

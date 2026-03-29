@@ -12,6 +12,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { randomUUID } from 'crypto';
 import { encrypt, decrypt } from '../security/crypto.js';
 
 // 書き込みを伴う操作の競合防止用インプロセスミューテックス
@@ -107,7 +108,7 @@ export function create(connection) {
     const connections = JSON.parse(raw);
 
     const newConnection = {
-      id:        `conn_${Date.now()}`,
+      id:        `conn_${randomUUID()}`,
       name:      connection.name     || `Connection ${connections.length + 1}`,
       host:      connection.host     || 'localhost',
       port:      Number(connection.port) || 3306,

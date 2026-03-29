@@ -64,5 +64,5 @@ export const testsApi = {
 export const reportsApi = {
   list: () => get('/reports'),
   get: (id) => get(`/reports/${id}`),
-  exportUrl: (id, format) => `${BASE_URL}/reports/${id}/export?format=${format}`
+  exportUrl: (id, format) => `${BASE_URL}/reports/${encodeURIComponent(id)}/export?format=${encodeURIComponent(format)}`
 };

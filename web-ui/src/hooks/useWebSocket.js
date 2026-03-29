@@ -35,6 +35,9 @@ export function useWebSocket(onMessage) {
   // 接続確立後に flush して全て送信する。
   const pendingSubscribesRef = useRef(new Set());
 
+  // connect を ref で保持して onclose から安全に参照する（自己参照の ESLint エラー回避）
+  const connectRef = useRef(null);
+
   const connect = useCallback(() => {
     if (!mountedRef.current) return;
 
@@ -70,7 +73,7 @@ export function useWebSocket(onMessage) {
         );
         retryCountRef.current += 1;
         console.log(`[WS] Disconnected. Reconnecting in ${delay}ms...`);
-        reconnectTimerRef.current = setTimeout(connect, delay);
+        reconnectTimerRef.current = setTimeout(() => connectRef.current?.(), delay);
       };
 
       ws.onerror = () => {
@@ -80,6 +83,9 @@ export function useWebSocket(onMessage) {
       console.error('[WS] Connection error:', e);
     }
   }, []); // deps なし：onMessage は ref 経由、connect 自体は不変
+
+  // ref を最新の connect に同期（connect は安定しているため実質1回のみ実行）
+  useEffect(() => { connectRef.current = connect; }, [connect]);
 
   useEffect(() => {
     mountedRef.current = true;

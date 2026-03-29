@@ -25,7 +25,8 @@ import { ParallelPerformanceTester } from '../../lib/testers/parallel-tester.js'
 import { createDbConfig } from '../../lib/config/database-configuration.js';
 import { createTestConfig } from '../../lib/config/test-configuration.js';
 import { validateQuery } from '../../lib/utils/validator.js';
-import { validateId, handleIdError } from '../security/validate-id.js';
+import { validateId } from '../security/validate-id.js';
+import { asyncHandler } from '../middleware/async-handler.js';
 
 // ─── 同時テスト実行数の上限セマフォ ──────────────────────────────────────
 // N × parallelThreads 分の MySQL 接続が同時に開かれることを防ぐ。
@@ -179,6 +180,31 @@ router.post('/single', async (req, res) => {
     });
   }
 
+  // ─ バリデーションとビルドを 202 返却前に実施（エラーを同期的に返す） ─────
+  const { sqlText, testName = 'Web UI Test' } = req.body;
+
+  if (!sqlText?.trim()) {
+    releaseSemaphore();
+    return res.status(400).json({ success: false, error: 'SQL が指定されていません' });
+  }
+
+  try {
+    validateQuery(sqlText.trim());
+  } catch (validationErr) {
+    releaseSemaphore();
+    return res.status(400).json({ success: false, error: `SQLバリデーションエラー: ${validationErr.message}` });
+  }
+
+  let dbConfig, testConfig;
+  try {
+    ({ dbConfig, testConfig } = await buildConfigs(req.body));
+  } catch (configErr) {
+    releaseSemaphore();
+    if (configErr.status === 400) return res.status(400).json({ success: false, error: configErr.message });
+    if (configErr.message === '指定された接続が見つかりません') return res.status(404).json({ success: false, error: configErr.message });
+    return res.status(500).json({ success: false, error: 'サーバーエラーが発生しました' });
+  }
+
   // testId は crypto.randomUUID() で衝突ゼロを保証（M3対応）
   const testId = `test_${randomUUID()}`;
   const wss = req.app.get('wss');
@@ -189,20 +215,6 @@ router.post('/single', async (req, res) => {
   setImmediate(async () => {
     let tester = null;
     try {
-      const { dbConfig, testConfig } = await buildConfigs(req.body);
-      const { sqlText, testName = 'Web UI Test' } = req.body;
-
-      if (!sqlText || !sqlText.trim()) {
-        return broadcast(wss, testId, 'error', { message: 'SQL が指定されていません' });
-      }
-
-      // 危険なパターン（複文・DROP/DELETE/TRUNCATE の複合）を検出
-      try {
-        validateQuery(sqlText.trim());
-      } catch (validationErr) {
-        return broadcast(wss, testId, 'error', { message: `SQLバリデーションエラー: ${validationErr.message}` });
-      }
-
       tester = new MySQLPerformanceTester(dbConfig, testConfig);
       tester.on('progress', (data) => broadcast(wss, testId, 'progress', data));
       await tester.initialize();
@@ -240,6 +252,33 @@ router.post('/parallel', async (req, res) => {
     });
   }
 
+  // ─ バリデーションとビルドを 202 返却前に実施（エラーを同期的に返す） ─────
+  const { testName = '並列テスト', parallelDirectory = './parallel', sqlIds } = req.body;
+
+  // ディレクトリモード: パス検証を事前実施
+  let preValidatedDir = null;
+  if (!sqlIds || !Array.isArray(sqlIds) || sqlIds.length === 0) {
+    try {
+      preValidatedDir = validateParallelDir(parallelDirectory);
+    } catch (dirErr) {
+      releaseSemaphore();
+      return res.status(400).json({ success: false, error: dirErr.message });
+    }
+  } else if (sqlIds.length > 50) {
+    releaseSemaphore();
+    return res.status(400).json({ success: false, error: '選択できるSQLは50件以内です' });
+  }
+
+  let dbConfig, testConfig;
+  try {
+    ({ dbConfig, testConfig } = await buildConfigs(req.body));
+  } catch (configErr) {
+    releaseSemaphore();
+    if (configErr.status === 400) return res.status(400).json({ success: false, error: configErr.message });
+    if (configErr.message === '指定された接続が見つかりません') return res.status(404).json({ success: false, error: configErr.message });
+    return res.status(500).json({ success: false, error: 'サーバーエラーが発生しました' });
+  }
+
   // testId は crypto.randomUUID() で衝突ゼロを保証（M3対応）
   const testId = `parallel_${randomUUID()}`;
   const wss = req.app.get('wss');
@@ -249,14 +288,10 @@ router.post('/parallel', async (req, res) => {
   setImmediate(async () => {
     let tester = null;
     let tmpDirCreated = false;
-    let usedDir = null;
+    let usedDir = preValidatedDir;
     try {
-      const { dbConfig, testConfig } = await buildConfigs(req.body);
-      const { testName = '並列テスト', parallelDirectory = './parallel', sqlIds } = req.body;
-
       // ─ SQLライブラリから選択された場合は一時ディレクトリに書き出す ─────────
       if (sqlIds && Array.isArray(sqlIds) && sqlIds.length > 0) {
-        if (sqlIds.length > 50) throw new Error('選択できるSQLは50件以内です');
         // testId を含む一意なサブディレクトリを使用（競合防止）
         const tmpTestDir = path.join(TMP_PARALLEL_DIR, testId);
         await fs.mkdir(tmpTestDir, { recursive: true });
@@ -278,9 +313,6 @@ router.post('/parallel', async (req, res) => {
           );
         }));
         usedDir = tmpTestDir;
-      } else {
-        // ─ ディレクトリ指定（パス検証あり） ─────────────────────────────────
-        usedDir = validateParallelDir(parallelDirectory);
       }
 
       tester = new ParallelPerformanceTester(dbConfig, testConfig);
@@ -314,43 +346,38 @@ router.post('/parallel', async (req, res) => {
 });
 
 // ─── 結果一覧 ─────────────────────────────────────────────────────────────
-router.get('/results', async (req, res) => {
-  try {
-    await fs.mkdir(RESULTS_DIR, { recursive: true });
-    const files = await fs.readdir(RESULTS_DIR);
-    const jsonFiles = files.filter(f => f.endsWith('.json'));
+router.get('/results', asyncHandler(async (req, res) => {
+  await fs.mkdir(RESULTS_DIR, { recursive: true });
+  const files = await fs.readdir(RESULTS_DIR);
+  const jsonFiles = files.filter(f => f.endsWith('.json'));
 
-    const results = await Promise.all(
-      jsonFiles.map(async file => {
-        const stat = await fs.stat(path.join(RESULTS_DIR, file));
-        return {
-          id: file.replace('.json', ''),
-          fileName: file,
-          createdAt: stat.mtime.toISOString(),
-          size: stat.size
-        };
-      })
-    );
+  const results = await Promise.all(
+    jsonFiles.map(async file => {
+      const stat = await fs.stat(path.join(RESULTS_DIR, file));
+      return {
+        id: file.replace('.json', ''),
+        fileName: file,
+        createdAt: stat.mtime.toISOString(),
+        size: stat.size
+      };
+    })
+  );
 
-    results.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    res.json({ success: true, data: results });
-  } catch (err) {
-    res.status(500).json({ success: false, error: 'サーバーエラーが発生しました' });
-  }
-});
+  results.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  res.json({ success: true, data: results });
+}));
 
 // ─── 結果詳細 ─────────────────────────────────────────────────────────────
-router.get('/results/:id', async (req, res) => {
+router.get('/results/:id', asyncHandler(async (req, res) => {
+  const id = validateId(req.params.id, '結果ID');
+  const filePath = path.join(RESULTS_DIR, `${id}.json`);
   try {
-    const id = validateId(req.params.id, '結果ID');
-    const filePath = path.join(RESULTS_DIR, `${id}.json`);
     const raw = await fs.readFile(filePath, 'utf8');
     res.json({ success: true, data: JSON.parse(raw) });
-  } catch (err) {
-    if (err.status) return handleIdError(err, res);
+  } catch {
     res.status(404).json({ success: false, error: '結果が見つかりません' });
   }
-});
+}));
 
 // ─── シリアライザー（循環参照等を除去） ──────────────────────────────────
 function serializeResult(result) {

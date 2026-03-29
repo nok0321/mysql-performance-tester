@@ -4,6 +4,9 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer
 } from 'recharts';
+import StatCardsGrid from '../components/StatCardsGrid';
+import ProgressBar from '../components/ProgressBar';
+import useTestExecution from '../hooks/useTestExecution';
 
 export default function ParallelTest({ wsMessages, subscribeTestId }) {
   const [connections, setConnections] = useState([]);
@@ -17,41 +20,15 @@ export default function ParallelTest({ wsMessages, subscribeTestId }) {
   });
   const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  // SQL ソースモード: 'directory' | 'library'
   const [sqlMode, setSqlMode] = useState('directory');
   const [selectedSqlIds, setSelectedSqlIds] = useState([]);
 
-  const [runState, setRunState] = useState(null);
-  const [currentTestId, setCurrentTestId] = useState(null);
-  const [progress, setProgress] = useState({ current: 0, total: 0 });
-  const [results, setResults] = useState(null);
-  const [liveData, setLiveData] = useState([]);
-  const [errorMsg, setErrorMsg] = useState('');
+  const { run, dispatch, setCurrentTestId } = useTestExecution(wsMessages);
 
   useEffect(() => {
     connectionsApi.list().then(setConnections).catch(() => { });
     sqlLibraryApi.list().then(setSqlSnippets).catch(() => { });
   }, []);
-
-  useEffect(() => {
-    if (!currentTestId || !wsMessages.length) return;
-    const relevant = wsMessages.filter(m => m.testId === currentTestId);
-    if (!relevant.length) return;
-    const last = relevant[relevant.length - 1];
-    if (last.type === 'progress') {
-      setProgress(last.data);
-      setLiveData(prev => [...prev.slice(-60), {
-        t: prev.length,
-        duration: last.data.duration
-      }]);
-    } else if (last.type === 'complete') {
-      setRunState('complete');
-      setResults(last.data.results);
-    } else if (last.type === 'error') {
-      setRunState('error');
-      setErrorMsg(last.data.message);
-    }
-  }, [wsMessages, currentTestId]);
 
   const toggleSqlId = (id) => {
     setSelectedSqlIds(prev =>
@@ -60,31 +37,24 @@ export default function ParallelTest({ wsMessages, subscribeTestId }) {
   };
 
   const handleRun = async () => {
-    if (!form.connectionId) return setErrorMsg('接続先を選択してください');
+    if (!form.connectionId) return dispatch({ type: 'error', data: { message: '接続先を選択してください' } });
     if (sqlMode === 'library' && selectedSqlIds.length === 0)
-      return setErrorMsg('SQL ライブラリから1件以上選択してください');
-    setErrorMsg('');
-    setResults(null);
-    setLiveData([]);
+      return dispatch({ type: 'error', data: { message: 'SQL ライブラリから1件以上選択してください' } });
+
+    dispatch({ type: 'start', progress: { current: 0, total: form.parallelThreads * form.testIterations } });
     setCurrentTestId(null);
-    setRunState('running');
-    setProgress({ current: 0, total: form.parallelThreads * form.testIterations });
 
     try {
       const payload = sqlMode === 'library'
         ? { ...form, sqlIds: selectedSqlIds }
         : { ...form };
-      // サーバーが生成した testId を受け取り、WebSocket フィルタに使う
       const { testId } = await testsApi.runParallel(payload);
       setCurrentTestId(testId);
       subscribeTestId?.(testId);
     } catch (e) {
-      setRunState('error');
-      setErrorMsg(e.message);
+      dispatch({ type: 'error', data: { message: e.message } });
     }
   };
-
-  const progressPct = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 'var(--space-5)', alignItems: 'start' }}>
@@ -175,11 +145,11 @@ export default function ParallelTest({ wsMessages, subscribeTestId }) {
         </div>
 
         <button className="btn btn-primary btn-lg" style={{ width: '100%' }}
-          onClick={handleRun} disabled={runState === 'running'}>
-          {runState === 'running' ? <><span className="spinner" /> 実行中...</> : '⚡ 並列テスト実行'}
+          onClick={handleRun} disabled={run.runState === 'running'}>
+          {run.runState === 'running' ? <><span className="spinner" /> 実行中...</> : '⚡ 並列テスト実行'}
         </button>
 
-        {errorMsg && <div className="alert alert-error mt-4">{errorMsg}</div>}
+        {run.errorMsg && <div className="alert alert-error mt-4">{run.errorMsg}</div>}
 
         <div className="text-xs text-muted mt-4" style={{ marginTop: 'var(--space-4)' }}>
           総クエリ数: {form.parallelThreads * form.testIterations} 回
@@ -188,18 +158,15 @@ export default function ParallelTest({ wsMessages, subscribeTestId }) {
 
       {/* 結果パネル */}
       <div>
-        {runState === 'running' && (
-          <div className="card mb-4 fade-in">
-            <div className="flex items-center justify-between mb-4">
-              <span className="card-title">⚡ 並列実行中...</span>
-              <span className="badge badge-blue">{progress.current}/{progress.total} クエリ完了</span>
-            </div>
-            <div className="progress-wrap">
-              <div className="progress-bar" style={{ width: `${progressPct}%` }} />
-            </div>
-            {liveData.length > 1 && (
+        {run.runState === 'running' && (
+          <ProgressBar
+            current={run.progress.current}
+            total={run.progress.total}
+            label="⚡ 並列実行中..."
+          >
+            {run.liveData.length > 1 && (
               <ResponsiveContainer width="100%" height={140} style={{ marginTop: 16 }}>
-                <LineChart data={liveData}>
+                <LineChart data={run.liveData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                   <XAxis dataKey="t" hide />
                   <YAxis tick={{ fill: 'var(--color-text-muted)', fontSize: 10 }} />
@@ -208,40 +175,31 @@ export default function ParallelTest({ wsMessages, subscribeTestId }) {
                 </LineChart>
               </ResponsiveContainer>
             )}
-          </div>
+          </ProgressBar>
         )}
 
-        {results && (
+        {run.results && (
           <div className="fade-in">
-            {Object.entries(results).map(([strategy, data]) => {
+            {Object.entries(run.results).map(([strategy, data]) => {
               const m = data?.metrics;
               if (!m) return null;
               const perFile = m.perFile || {};
               const fileEntries = Object.entries(perFile);
               return (
                 <div key={strategy} className="card mb-4">
-                  {/* ─ 戦略サマリー ─ */}
                   <div className="card-header">
                     <div className="card-title">⚡ 戦略: {strategy}</div>
                     <span className={`badge ${parseFloat(m.queries?.successRate) >= 90 ? 'badge-green' : parseFloat(m.queries?.successRate) >= 50 ? 'badge-yellow' : 'badge-red'}`}>
                       成功率 {m.queries?.successRate}
                     </span>
                   </div>
-                  <div className="card-grid card-grid-4 mb-4">
-                    {[
-                      { label: 'QPS', value: m.throughput?.qps, unit: '/s' },
-                      { label: '総クエリ', value: m.queries?.total, unit: '件' },
-                      { label: 'P95', value: m.latency?.percentiles?.p95, unit: 'ms' },
-                      { label: '実行時間', value: m.duration?.seconds?.toFixed(3), unit: 's' },
-                    ].map(s => (
-                      <div key={s.label} className="stat-card">
-                        <div className="stat-label">{s.label}</div>
-                        <div className="stat-value">{s.value ?? '-'}<span className="stat-unit">{s.unit}</span></div>
-                      </div>
-                    ))}
-                  </div>
+                  <StatCardsGrid items={[
+                    { label: 'QPS', value: m.throughput?.qps, unit: '/s' },
+                    { label: '総クエリ', value: m.queries?.total, unit: '件' },
+                    { label: 'P95', value: m.latency?.percentiles?.p95, unit: 'ms' },
+                    { label: '実行時間', value: m.duration?.seconds?.toFixed(3), unit: 's' },
+                  ]} />
 
-                  {/* ─ SQL 別内訳テーブル ─ */}
                   {fileEntries.length > 0 && (
                     <>
                       <div className="section-title" style={{ marginBottom: 'var(--space-2)', fontSize: 'var(--text-xs)', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-muted)' }}>
@@ -291,7 +249,7 @@ export default function ParallelTest({ wsMessages, subscribeTestId }) {
           </div>
         )}
 
-        {!results && !runState && (
+        {!run.results && !run.runState && (
           <div className="empty-state">
             <div className="empty-icon">⚡</div>
             <p>左のパネルで設定し、並列テストを実行してください</p>

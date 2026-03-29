@@ -1,12 +1,6 @@
 import { useState, useEffect } from 'react';
 import { reportsApi } from '../api/client';
 
-function gradeClass(grade) {
-  if (!grade) return '';
-  const g = grade.replace(/[^A-F+]/g, '').replace('+', 'plus');
-  return `grade-${g}`;
-}
-
 export default function Reports() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
