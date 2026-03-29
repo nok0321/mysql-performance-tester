@@ -13,17 +13,18 @@
 
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto';
 
-const ALGORITHM  = 'aes-256-gcm';
-const SALT       = 'mysql-perf-tester-v1';
-const ENC_PREFIX = 'enc:';
+const ALGORITHM   = 'aes-256-gcm';
+const LEGACY_SALT = 'mysql-perf-tester-v1'; // kept for backward-compat decryption only
+const ENC_PREFIX  = 'enc:';
 
 let _warnedNoKey = false;
 
 /**
- * 環境変数 ENCRYPTION_KEY から 32 バイトの対称鍵を導出する。
+ * 環境変数 ENCRYPTION_KEY と指定された SALT から 32 バイトの対称鍵を導出する。
  * 未設定の場合は null を返す（平文モード）。
+ * @param {Buffer|string} salt
  */
-function deriveKey() {
+function deriveKey(salt) {
   const secret = process.env.ENCRYPTION_KEY;
   if (!secret) {
     if (!_warnedNoKey) {
@@ -36,7 +37,7 @@ function deriveKey() {
     }
     return null;
   }
-  return scryptSync(secret, SALT, 32);
+  return scryptSync(secret, salt, 32);
 }
 
 /**
@@ -49,18 +50,22 @@ function deriveKey() {
 export function encrypt(plaintext) {
   if (!plaintext) return plaintext;
 
-  const key = deriveKey();
+  // ランダム SALT を生成して鍵を導出（レインボーテーブル攻撃対策）
+  const salt = randomBytes(16);
+  const key  = deriveKey(salt);
   if (!key) return plaintext; // 平文モード
 
-  const iv         = randomBytes(12); // GCM 推奨: 96bit
-  const cipher     = createCipheriv(ALGORITHM, key, iv);
-  const encrypted  = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
-  const authTag    = cipher.getAuthTag();
+  const iv        = randomBytes(12); // GCM 推奨: 96bit
+  const cipher    = createCipheriv(ALGORITHM, key, iv);
+  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  const authTag   = cipher.getAuthTag();
 
+  // 保存形式 (v2): enc:<salt_b64>:<iv_b64>:<authTag_b64>:<ciphertext_b64> (4 parts)
   return (
     ENC_PREFIX +
-    iv.toString('base64') + ':' +
-    authTag.toString('base64') + ':' +
+    salt.toString('base64')     + ':' +
+    iv.toString('base64')       + ':' +
+    authTag.toString('base64')  + ':' +
     encrypted.toString('base64')
   );
 }
@@ -77,22 +82,35 @@ export function decrypt(ciphertext) {
   if (!ciphertext) return ciphertext;
   if (!ciphertext.startsWith(ENC_PREFIX)) return ciphertext; // 平文（移行前）
 
-  const key = deriveKey();
-  if (!key) {
-    // ENCRYPTION_KEY なしで暗号化データを読もうとしている場合は空文字を返す
-    console.error('[Security] ENCRYPTION_KEY が設定されていないため、暗号化パスワードを復号できません。');
-    return '';
-  }
-
   try {
-    const body          = ciphertext.slice(ENC_PREFIX.length);
-    const parts         = body.split(':');
-    if (parts.length !== 3) throw new Error('invalid format');
+    const body  = ciphertext.slice(ENC_PREFIX.length);
+    const parts = body.split(':');
 
-    const [ivB64, authTagB64, encB64] = parts;
-    const iv       = Buffer.from(ivB64,      'base64');
-    const authTag  = Buffer.from(authTagB64, 'base64');
-    const encBuf   = Buffer.from(encB64,     'base64');
+    let key, iv, authTag, encBuf;
+
+    if (parts.length === 4) {
+      // v2 形式: <salt_b64>:<iv_b64>:<authTag_b64>:<ciphertext_b64>
+      const [saltB64, ivB64, authTagB64, encB64] = parts;
+      const salt = Buffer.from(saltB64, 'base64');
+      key     = deriveKey(salt);
+      iv      = Buffer.from(ivB64,      'base64');
+      authTag = Buffer.from(authTagB64, 'base64');
+      encBuf  = Buffer.from(encB64,     'base64');
+    } else if (parts.length === 3) {
+      // v1 (レガシー) 形式: <iv_b64>:<authTag_b64>:<ciphertext_b64>
+      const [ivB64, authTagB64, encB64] = parts;
+      key     = deriveKey(LEGACY_SALT);
+      iv      = Buffer.from(ivB64,      'base64');
+      authTag = Buffer.from(authTagB64, 'base64');
+      encBuf  = Buffer.from(encB64,     'base64');
+    } else {
+      throw new Error('invalid format');
+    }
+
+    if (!key) {
+      console.error('[Security] ENCRYPTION_KEY が設定されていないため、暗号化パスワードを復号できません。');
+      return '';
+    }
 
     const decipher = createDecipheriv(ALGORITHM, key, iv);
     decipher.setAuthTag(authTag);

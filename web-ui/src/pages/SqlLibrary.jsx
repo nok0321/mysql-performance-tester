@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { sqlApi } from '../api/client';
 
 const CATEGORIES = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'JOIN', 'AGGREGATE', 'COMPLEX', 'OTHER'];
@@ -98,16 +98,16 @@ export default function SqlLibrary() {
   const [keyword, setKeyword] = useState('');
   const [error, setError] = useState('');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
       const data = await sqlApi.list({ category: filterCat || undefined, keyword: keyword || undefined });
       setItems(data);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
-  };
+  }, [filterCat, keyword]);
 
-  useEffect(() => { load(); }, [filterCat, keyword]);
+  useEffect(() => { load(); }, [load]);
 
   const handleSave = async (form) => {
     try {

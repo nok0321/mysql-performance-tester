@@ -6,6 +6,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { randomUUID } from 'crypto';
 
 // 書き込みを伴う操作の競合防止用インプロセスミューテックス
 let _lock = Promise.resolve();
@@ -98,7 +99,7 @@ export function create(snippet) {
     const items = await safeReadJson(STORE_FILE);
 
     const newItem = {
-      id: `sql_${Date.now()}`,
+      id: `sql_${randomUUID()}`,
       name: snippet.name || 'Untitled SQL',
       sql: snippet.sql || '',
       category: snippet.category || 'SELECT',
