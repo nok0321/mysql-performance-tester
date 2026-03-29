@@ -21,16 +21,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: npm
 
       - name: Install root dependencies
-        run: npm ci
+        run: npm install
 
       - name: Run unit tests
         run: npm run test:unit
 
       - name: Install web-ui dependencies
-        run: npm ci
+        run: npm install
         working-directory: web-ui
 
       - name: Lint web-ui
