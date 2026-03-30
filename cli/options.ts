@@ -1,9 +1,56 @@
 /**
- * CLI Options - コマンドラインオプション定義
+ * CLI Options - Command-line option definitions
  */
 
-export const CLI_OPTIONS = {
-    // データベース接続オプション
+/** Supported option types */
+type OptionType = 'string' | 'number' | 'boolean';
+
+/** Definition for a single CLI option */
+interface CliOptionDefinition {
+    alias?: string;
+    type: OptionType;
+    description: string;
+    default?: string | number | boolean | null;
+    choices?: string[];
+}
+
+/** Parsed CLI options keyed by option name */
+export interface ParsedOptions {
+    host: string;
+    port: number;
+    user: string;
+    password: string;
+    database: string;
+    iterations: number;
+    threads: number;
+    sqlDir: string;
+    parallelDir: string;
+    warmup: boolean;
+    warmupPercentage: number;
+    removeOutliers: boolean;
+    outlierMethod: string;
+    explainAnalyze: boolean;
+    performanceSchema: boolean;
+    optimizerTrace: boolean;
+    bufferPoolMonitoring: boolean;
+    generateReport: boolean;
+    outputDir: string | null;
+    skipParallel: boolean;
+    verbose: boolean;
+    help: boolean;
+    version: boolean;
+    [key: string]: string | number | boolean | null;
+}
+
+/** Result of parsing command-line arguments */
+export interface ParsedArguments {
+    command: string | null;
+    options: ParsedOptions;
+    positional: string[];
+}
+
+export const CLI_OPTIONS: Record<string, CliOptionDefinition> = {
+    // Database connection options
     host: {
         alias: 'H',
         type: 'string',
@@ -14,7 +61,7 @@ export const CLI_OPTIONS = {
         alias: 'P',
         type: 'number',
         description: 'Database port',
-        default: parseInt(process.env.DB_PORT) || 3306
+        default: parseInt(process.env.DB_PORT ?? '') || 3306
     },
     user: {
         alias: 'u',
@@ -35,7 +82,7 @@ export const CLI_OPTIONS = {
         default: process.env.DB_NAME || 'sample_app'
     },
 
-    // テスト設定オプション
+    // Test configuration options
     iterations: {
         alias: 'i',
         type: 'number',
@@ -60,7 +107,7 @@ export const CLI_OPTIONS = {
         default: './parallel'
     },
 
-    // ウォームアップオプション
+    // Warmup options
     warmup: {
         type: 'boolean',
         description: 'Enable warmup phase',
@@ -72,7 +119,7 @@ export const CLI_OPTIONS = {
         default: 20
     },
 
-    // 統計オプション
+    // Statistics options
     removeOutliers: {
         type: 'boolean',
         description: 'Remove outliers from statistics',
@@ -85,7 +132,7 @@ export const CLI_OPTIONS = {
         choices: ['iqr', 'zscore', 'mad']
     },
 
-    // 分析オプション
+    // Analysis options
     explainAnalyze: {
         type: 'boolean',
         description: 'Enable EXPLAIN ANALYZE',
@@ -107,7 +154,7 @@ export const CLI_OPTIONS = {
         default: false
     },
 
-    // レポートオプション
+    // Report options
     generateReport: {
         type: 'boolean',
         description: 'Generate analysis report',
@@ -117,10 +164,10 @@ export const CLI_OPTIONS = {
         alias: 'o',
         type: 'string',
         description: 'Output directory for results',
-        default: null // デフォルトはタイムスタンプベース
+        default: null
     },
 
-    // その他のオプション
+    // Other options
     skipParallel: {
         type: 'boolean',
         description: 'Skip parallel tests in default mode',
@@ -145,16 +192,16 @@ export const CLI_OPTIONS = {
 };
 
 /**
- * コマンドライン引数をパース
+ * Parse command-line arguments
  */
-export function parseArguments(args) {
-    const result = {
+export function parseArguments(args: string[]): ParsedArguments {
+    const result: ParsedArguments = {
         command: null,
-        options: {},
+        options: {} as ParsedOptions,
         positional: []
     };
 
-    // デフォルト値を設定
+    // Set default values
     for (const [key, option] of Object.entries(CLI_OPTIONS)) {
         if (option.default !== undefined) {
             result.options[key] = option.default;
@@ -172,7 +219,7 @@ export function parseArguments(args) {
             result.options.version = true;
             i++;
         } else if (arg.startsWith('--')) {
-            // ロングオプション
+            // Long option
             const key = arg.slice(2);
             const option = CLI_OPTIONS[key];
 
@@ -187,7 +234,7 @@ export function parseArguments(args) {
             }
             i++;
         } else if (arg.startsWith('-')) {
-            // ショートオプション
+            // Short option
             const shortKey = arg.slice(1);
             const longKey = Object.keys(CLI_OPTIONS).find(
                 k => CLI_OPTIONS[k].alias === shortKey
@@ -205,7 +252,7 @@ export function parseArguments(args) {
             }
             i++;
         } else {
-            // 位置引数またはコマンド
+            // Positional argument or command
             if (!result.command) {
                 result.command = arg;
             } else {
@@ -219,9 +266,9 @@ export function parseArguments(args) {
 }
 
 /**
- * ヘルプメッセージを生成
+ * Generate help message
  */
-export function generateHelpMessage() {
+export function generateHelpMessage(): string {
     return `
 MySQL Performance Tester - Command Line Interface
 
@@ -284,8 +331,8 @@ MySQL Performance Tester - Command Line Interface
 }
 
 /**
- * バージョン情報を取得
+ * Get version information
  */
-export function getVersion() {
+export function getVersion(): string {
     return '1.0.0';
 }
