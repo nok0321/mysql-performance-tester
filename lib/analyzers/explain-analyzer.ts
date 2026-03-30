@@ -1,0 +1,69 @@
+/**
+ * EXPLAIN analysis class
+ * Handles execution and analysis of EXPLAIN and EXPLAIN ANALYZE (MySQL 8.0.18+)
+ */
+
+import type { RowDataPacket } from 'mysql2/promise';
+import { BaseAnalyzer } from './base-analyzer.js';
+import type { DatabaseConnection } from '../core/database-connection.js';
+import type { TestConfig, ExplainQueryResult, ExplainAnalyzeResult } from '../types/index.js';
+
+export class ExplainAnalyzer extends BaseAnalyzer {
+    constructor(connection: DatabaseConnection, config: TestConfig) {
+        super(connection, config);
+    }
+
+    /**
+     * Execute EXPLAIN analysis (FORMAT=JSON)
+     * @param query - The query to analyze
+     * @returns EXPLAIN result, or null on error
+     */
+    async analyzeQuery(query: string): Promise<ExplainQueryResult | null> {
+        try {
+            const [rows] = await this.connection.query(`EXPLAIN FORMAT=JSON ${query}`) as [RowDataPacket[], unknown];
+            return {
+                type: 'EXPLAIN',
+                data: JSON.parse((rows[0].EXPLAIN as string).replace(/\/\*[\s\S]*?\*\//g, '')) as Record<string, unknown>,
+                timestamp: new Date().toISOString()
+            };
+        } catch (error) {
+            console.warn(`EXPLAIN実行エラー: ${(error as Error).message}`);
+            return null;
+        }
+    }
+
+    /**
+     * Execute EXPLAIN ANALYZE (MySQL 8.0.18+)
+     * @param query - The query to analyze
+     * @returns EXPLAIN ANALYZE result, or null if unsupported or on error
+     */
+    async analyzeQueryWithExecution(query: string): Promise<ExplainAnalyzeResult | null> {
+        if (!this.connection.isExplainAnalyzeSupported()) {
+            return null;
+        }
+
+        try {
+            const [rows] = await this.connection.query(`EXPLAIN ANALYZE ${query}`) as [RowDataPacket[], unknown];
+
+            // Check if MySQL 8.3+ supports JSON format
+            let jsonResult: Record<string, unknown> | null = null;
+            try {
+                await this.connection.query('SET @@explain_json_format_version = 2');
+                const [jsonRows] = await this.connection.query(`EXPLAIN ANALYZE FORMAT=JSON ${query}`) as [RowDataPacket[], unknown];
+                jsonResult = JSON.parse((jsonRows[0]['EXPLAIN'] as string).replace(/\/\*[\s\S]*?\*\//g, '')) as Record<string, unknown>;
+            } catch (_jsonError) {
+                // Ignore if JSON format is not available
+            }
+
+            return {
+                type: 'EXPLAIN_ANALYZE',
+                tree: rows[0]['EXPLAIN'] as string,
+                json: jsonResult,
+                timestamp: new Date().toISOString()
+            };
+        } catch (error) {
+            console.warn(`EXPLAIN ANALYZE実行エラー: ${(error as Error).message}`);
+            return null;
+        }
+    }
+}

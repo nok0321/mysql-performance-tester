@@ -7,34 +7,107 @@
 
 // ─── Configuration ──────────────────────────────────────────────────────
 
+export interface DbConfigOptions {
+    host?: string;
+    port?: number | string;
+    user?: string;
+    password?: string;
+    database?: string;
+    connectTimeout?: number;
+    acquireTimeout?: number;
+    timeout?: number;
+    parallelThreads?: number;
+}
+
 export interface DbConfig {
     host: string;
     port: number;
     user: string;
     password: string;
     database: string;
-    connectionLimit?: number;
-    connectTimeout?: number;
-    acquireTimeout?: number;
+    connectTimeout: number;
+    acquireTimeout: number;
+    timeout: number;
+    parallelThreads: number;
+}
+
+export interface PoolConfig {
+    host: string;
+    port: number;
+    user: string;
+    password: string;
+    database: string;
+    waitForConnections: boolean;
+    connectionLimit: number;
+    queueLimit: number;
+    maxIdle: number;
+    idleTimeout: number;
+    enableKeepAlive: boolean;
+    keepAliveInitialDelay: number;
+    connectTimeout: number;
+    acquireTimeout: number;
+    multipleStatements: boolean;
+}
+
+export interface FileManagerConfig {
+    enableDebugOutput: boolean;
+    outputDir: string;
+    enableTimestamp: boolean;
+    maxFileSize: number;
+}
+
+export interface TestConfigOptions {
+    tableName?: string;
+    testIterations?: number;
     parallelThreads?: number;
+    skipParallelTests?: boolean;
+    sqlDirectory?: string;
+    parallelDirectory?: string;
+    resultDirectory?: string;
+    enableWarmup?: boolean;
+    warmupIterations?: number | null;
+    warmupPercentage?: number;
+    enableStatistics?: boolean;
+    removeOutliers?: boolean;
+    outlierMethod?: string;
+    enableOptimizerTrace?: boolean;
+    enableExplainAnalyze?: boolean;
+    generateReport?: boolean;
+    enableBufferPoolMonitoring?: boolean;
+    enablePerformanceSchema?: boolean;
+    clearCacheBeforeEachTest?: boolean;
+    enableDebugOutput?: boolean;
+    debugOutputDir?: string;
+    enableTimestamp?: boolean;
+    maxFileSize?: number;
 }
 
 export interface TestConfig {
+    tableName: string;
     testIterations: number;
     parallelThreads: number;
-    enableWarmup: boolean;
-    warmupPercentage: number;
-    removeOutliers: boolean;
-    outlierMethod: 'iqr' | 'zscore' | 'mad';
-    enableExplainAnalyze: boolean;
-    enableOptimizerTrace: boolean;
-    enableBufferPoolMonitoring: boolean;
-    enablePerformanceSchema: boolean;
+    skipParallelTests: boolean;
     sqlDirectory: string;
     parallelDirectory: string;
-    generateReport: boolean;
-    enableDebugOutput: boolean;
     resultDirectory: string;
+    enableWarmup: boolean;
+    warmupIterations: number | null;
+    warmupPercentage: number;
+    enableStatistics: boolean;
+    removeOutliers: boolean;
+    outlierMethod: 'iqr' | 'zscore' | 'mad';
+    enableOptimizerTrace: boolean;
+    enableExplainAnalyze: boolean;
+    generateReport: boolean;
+    enableBufferPoolMonitoring: boolean;
+    enablePerformanceSchema: boolean;
+    clearCacheBeforeEachTest: boolean;
+    fileManager: FileManagerConfig;
+}
+
+export interface TestConfigValidation {
+    valid: boolean;
+    errors: string[];
 }
 
 // ─── Statistics ──────────────────────────────────────────────────────────
@@ -201,4 +274,68 @@ export interface AnalysisReportData {
     queryAnalysis: object;
     errorAnalysis: object;
     recommendations: Recommendation[];
+}
+
+// ─── Analyzer Results ──────────────────────────────────────────────────
+
+export interface BufferPoolMetrics {
+    hitRatio: number;
+    reads: number;
+    readRequests: number;
+    pagesTotal: number;
+    pagesFree: number;
+    pagesData: number;
+}
+
+export interface BufferPoolAnalysisResult {
+    rawData: Record<string, string>;
+    metrics: BufferPoolMetrics;
+    timestamp: string;
+}
+
+export interface ExplainQueryResult {
+    type: 'EXPLAIN';
+    data: Record<string, unknown>;
+    timestamp: string;
+}
+
+export interface ExplainAnalyzeResult {
+    type: 'EXPLAIN_ANALYZE';
+    tree: string;
+    json: Record<string, unknown> | null;
+    timestamp: string;
+}
+
+export interface OptimizerTraceResult {
+    trace: Record<string, unknown>;
+    timestamp: string;
+}
+
+export interface TopQueryEntry {
+    query: string;
+    executionCount: number;
+    avgLatency: number;
+    maxLatency: number;
+    rowsExamined: number;
+    rowsSent: number;
+}
+
+export interface WaitEventEntry {
+    eventName: string;
+    count: number;
+    totalWait: number;
+}
+
+export interface TableScanEntry {
+    schema: string;
+    table: string;
+    fullScans: number;
+}
+
+export interface PerformanceSchemaMetrics {
+    bufferPool: Record<string, number | string> | null;
+    topQueries: TopQueryEntry[] | null;
+    waitEvents: WaitEventEntry[] | null;
+    tableScans: TableScanEntry[] | null;
+    connections: Record<string, number> | null;
 }
