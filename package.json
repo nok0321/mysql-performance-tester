@@ -5,7 +5,7 @@
   "type": "module",
   "main": "./lib/index.js",
   "bin": {
-    "mysql-perf-test": "./cli/index.js"
+    "mysql-perf-test": "./cli/index.ts"
   },
   "exports": {
     ".": "./lib/index.js",
@@ -20,13 +20,13 @@
     "./models": "./lib/models/index.js"
   },
   "scripts": {
-    "start": "tsx cli/index.js run",
-    "test": "tsx cli/index.js demo",
+    "start": "tsx cli/index.ts run",
+    "test": "tsx cli/index.ts demo",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
-    "test:demo": "tsx cli/index.js demo",
-    "test:parallel": "tsx cli/index.js parallel",
-    "help": "tsx cli/index.js help",
+    "test:demo": "tsx cli/index.ts demo",
+    "test:parallel": "tsx cli/index.ts parallel",
+    "help": "tsx cli/index.ts help",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [

@@ -1,5 +1,5 @@
 /**
- * Analyze Command - 既存結果の分析コマンド
+ * Analyze Command - Analyze existing results
  */
 
 import { ReportGenerator } from '../../lib/reports/report-generator.js';
@@ -7,11 +7,19 @@ import { JsonExporter } from '../../lib/reports/exporters/json-exporter.js';
 import { MarkdownExporter } from '../../lib/reports/exporters/markdown-exporter.js';
 import { promises as fs } from 'fs';
 import path from 'path';
+import type { ParsedOptions } from '../options.js';
+
+/** Loaded results data */
+interface LoadedResults {
+    testResults: Array<{ testName: string; [key: string]: unknown }>;
+    config: Record<string, unknown>;
+    resultsFilePath: string;
+}
 
 /**
- * Analyze コマンド実行
+ * Execute the analyze command
  */
-export async function analyzeCommand(options, resultPath) {
+export async function analyzeCommand(options: ParsedOptions, resultPath: string | undefined): Promise<void> {
     console.log('\n' + '='.repeat(60));
     console.log('MySQL Performance Tester - 結果分析'.padStart(40));
     console.log('='.repeat(60));
@@ -27,7 +35,7 @@ export async function analyzeCommand(options, resultPath) {
     }
 
     try {
-        // 結果データの読み込み
+        // Load result data
         const { testResults, config, resultsFilePath } = await loadResults(resultPath);
 
         if (!testResults || testResults.length === 0) {
@@ -44,7 +52,7 @@ export async function analyzeCommand(options, resultPath) {
             });
         }
 
-        // レポート生成
+        // Generate report
         const outputDir = options.outputDir || path.dirname(resultsFilePath);
         await generateReport(testResults, config, outputDir);
 
@@ -52,25 +60,27 @@ export async function analyzeCommand(options, resultPath) {
         console.log('✅ 分析が完了しました！'.padStart(40));
         console.log('='.repeat(60));
 
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('\n❌ エラーが発生しました:', error);
-        console.error(error.stack);
+        if (error instanceof Error) {
+            console.error(error.stack);
+        }
         process.exit(1);
     }
 }
 
 /**
- * 結果データの読み込み
+ * Load result data from disk
  */
-async function loadResults(resultPath) {
+async function loadResults(resultPath: string): Promise<LoadedResults> {
     try {
-        // パスの検証
+        // Validate path
         const stats = await fs.stat(resultPath);
 
-        let resultsFilePath;
+        let resultsFilePath: string | undefined;
 
         if (stats.isDirectory()) {
-            // ディレクトリの場合、results.jsonまたはparallel-results.jsonを探す
+            // If directory, look for results.json or parallel-results.json
             const possibleFiles = [
                 path.join(resultPath, 'results.json'),
                 path.join(resultPath, 'parallel-results.json')
@@ -82,7 +92,7 @@ async function loadResults(resultPath) {
                     resultsFilePath = filePath;
                     break;
                 } catch {
-                    // ファイルが存在しない場合は次を試す
+                    // File does not exist, try next
                 }
             }
 
@@ -90,15 +100,18 @@ async function loadResults(resultPath) {
                 throw new Error(`結果ファイルが見つかりません: ${resultPath}`);
             }
         } else {
-            // ファイルの場合
+            // Direct file path
             resultsFilePath = resultPath;
         }
 
         console.log(`\n📂 結果ファイルを読み込み中: ${resultsFilePath}`);
 
-        // JSONファイルの読み込み
+        // Read JSON file
         const content = await fs.readFile(resultsFilePath, 'utf8');
-        const data = JSON.parse(content);
+        const data = JSON.parse(content) as {
+            results?: Array<{ testName: string; [key: string]: unknown }>;
+            config?: Record<string, unknown>;
+        };
 
         return {
             testResults: data.results || [],
@@ -106,21 +119,26 @@ async function loadResults(resultPath) {
             resultsFilePath,
         };
 
-    } catch (error) {
-        throw new Error(`結果ファイルの読み込みに失敗: ${error.message}`);
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`結果ファイルの読み込みに失敗: ${message}`);
     }
 }
 
 /**
- * レポート生成
+ * Generate report
  */
-async function generateReport(testResults, config, outputDir) {
+async function generateReport(
+    testResults: Array<{ testName: string; [key: string]: unknown }>,
+    config: Record<string, unknown>,
+    outputDir: string
+): Promise<Record<string, string>> {
     console.log('\n' + '='.repeat(60));
     console.log('レポート生成中...'.padStart(40));
     console.log('='.repeat(60));
 
     try {
-        // 出力ディレクトリの確保
+        // Ensure output directory exists
         await fs.mkdir(outputDir, { recursive: true });
 
         const generator = new ReportGenerator(testResults, config);
@@ -141,8 +159,12 @@ async function generateReport(testResults, config, outputDir) {
             console.log(`  - ${exporterName}: ${filePath}`);
         }
 
-        // サマリー情報の表示
-        const summary = generator.getSummary();
+        // Display summary information
+        const summary = generator.getSummary() as {
+            totalTests?: number;
+            averageExecutionTime?: number;
+            totalExecutionTime?: number;
+        } | null;
         if (summary) {
             console.log('\n📊 分析サマリー:');
             console.log(`  テスト総数: ${summary.totalTests || 0}`);
@@ -154,8 +176,12 @@ async function generateReport(testResults, config, outputDir) {
             }
         }
 
-        // 推奨事項の表示
-        const recommendations = generator.getRecommendations();
+        // Display recommendations
+        const recommendations = generator.getRecommendations() as Array<{
+            priority: string;
+            title: string;
+            description?: string;
+        }>;
         if (recommendations && recommendations.length > 0) {
             console.log('\n💡 推奨事項:');
             recommendations.slice(0, 3).forEach((rec, index) => {
@@ -171,9 +197,11 @@ async function generateReport(testResults, config, outputDir) {
         }
 
         return exportedFiles;
-    } catch (error) {
-        console.error(`❌ レポート生成エラー: ${error.message}`);
-        console.error(error.stack);
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        const stack = error instanceof Error ? error.stack : undefined;
+        console.error(`❌ レポート生成エラー: ${message}`);
+        console.error(stack);
         throw error;
     }
 }

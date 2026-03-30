@@ -1,5 +1,5 @@
 /**
- * Parallel Command - 並列負荷テスト実行コマンド
+ * Parallel Command - Parallel load test execution command
  */
 
 import { createDbConfig } from '../../lib/config/database-configuration.js';
@@ -10,16 +10,26 @@ import { JsonExporter } from '../../lib/reports/exporters/json-exporter.js';
 import { MarkdownExporter } from '../../lib/reports/exporters/markdown-exporter.js';
 import { promises as fs } from 'fs';
 import path from 'path';
+import type { ParsedOptions } from '../options.js';
+import type { TestConfig } from '../../lib/types/index.js';
+
+/** Entry for a parallel test result */
+interface ParallelResultEntry {
+    testName: string;
+    query: string;
+    parallelResults: unknown;
+    timestamp: string;
+}
 
 /**
- * Parallel コマンド実行
+ * Execute the parallel command
  */
-export async function parallelCommand(options) {
+export async function parallelCommand(options: ParsedOptions): Promise<void> {
     console.log('\n' + '='.repeat(60));
     console.log('MySQL Performance Tester - 並列負荷テスト'.padStart(40));
     console.log('='.repeat(60));
 
-    // 設定の作成
+    // Build configuration
     const dbConfig = createDbConfig({
         host:     options.host,
         port:     options.port,
@@ -51,21 +61,21 @@ export async function parallelCommand(options) {
         console.log(JSON.stringify({ dbConfig: { ...dbConfig, password: '***' }, testConfig }, null, 2));
     }
 
-    const testResults = [];
-    let parallelTester = null;
+    const testResults: ParallelResultEntry[] = [];
+    let parallelTester: ParallelPerformanceTester | null = null;
 
     try {
-        // 並列テスターの初期化
+        // Initialize parallel tester
         parallelTester = new ParallelPerformanceTester(dbConfig, testConfig);
         await parallelTester.initialize();
 
-        // 並列テスト実行
+        // Execute parallel tests
         const parallelDir = testConfig.parallelDirectory || './parallel';
         const results = await parallelTester.executeParallelTestsFromFiles(parallelDir);
 
         if (results) {
-            // 並列テストの結果を testResults に追加
-            Object.values(results).forEach(result => {
+            // Add parallel test results to testResults
+            Object.values(results).forEach((result) => {
                 if (result.metrics) {
                     testResults.push({
                         testName: `並列負荷テスト: ${result.strategy}`,
@@ -77,24 +87,26 @@ export async function parallelCommand(options) {
             });
         }
 
-        // 結果の保存
+        // Save results
         const resultDir = await saveResults(testResults, testConfig);
 
-        // レポート生成
+        // Generate report
         if (resultDir && testConfig.generateReport) {
-            await generateReport(testResults, testConfig, resultDir);
+            await generateReport(testResults, testConfig as unknown as Record<string, unknown>, resultDir);
         }
 
         console.log('\n' + '='.repeat(60));
         console.log('✅ 並列負荷テストが完了しました！'.padStart(40));
         console.log('='.repeat(60));
 
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('\n❌ エラーが発生しました:', error);
-        console.error(error.stack);
+        if (error instanceof Error) {
+            console.error(error.stack);
+        }
         process.exit(1);
     } finally {
-        // クリーンアップ
+        // Cleanup
         if (parallelTester) {
             await parallelTester.cleanup();
         }
@@ -102,9 +114,9 @@ export async function parallelCommand(options) {
 }
 
 /**
- * 結果の保存
+ * Save results to disk
  */
-async function saveResults(testResults, config) {
+async function saveResults(testResults: ParallelResultEntry[], config: TestConfig): Promise<string | null> {
     console.log('\n' + '='.repeat(60));
     console.log('結果保存中...'.padStart(40));
     console.log('='.repeat(60));
@@ -127,16 +139,21 @@ async function saveResults(testResults, config) {
         console.log(`✓ 結果ディレクトリ: ${resultDir}`);
 
         return resultDir;
-    } catch (error) {
-        console.error(`❌ 結果保存エラー: ${error.message}`);
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`❌ 結果保存エラー: ${message}`);
         return null;
     }
 }
 
 /**
- * レポート生成
+ * Generate report
  */
-async function generateReport(testResults, config, resultDir) {
+async function generateReport(
+    testResults: ParallelResultEntry[],
+    config: Record<string, unknown>,
+    resultDir: string
+): Promise<Record<string, string> | undefined> {
     console.log('\n' + '='.repeat(60));
     console.log('レポート生成中...'.padStart(40));
     console.log('='.repeat(60));
@@ -161,8 +178,10 @@ async function generateReport(testResults, config, resultDir) {
         }
 
         return exportedFiles;
-    } catch (error) {
-        console.error(`❌ レポート生成エラー: ${error.message}`);
-        console.error(error.stack);
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        const stack = error instanceof Error ? error.stack : undefined;
+        console.error(`❌ レポート生成エラー: ${message}`);
+        console.error(stack);
     }
 }

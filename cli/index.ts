@@ -1,11 +1,11 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 
 /**
  * MySQL Performance Tester - CLI Entry Point
- * コマンドラインインターフェース
  */
 
 import { parseArguments, generateHelpMessage, getVersion } from './options.js';
+import type { ParsedOptions } from './options.js';
 import { runCommand } from './commands/run.js';
 import { parallelCommand } from './commands/parallel.js';
 import { analyzeCommand } from './commands/analyze.js';
@@ -14,46 +14,47 @@ import { createTestConfig } from '../lib/config/test-configuration.js';
 import { MySQLPerformanceTester } from '../lib/testers/single-tester.js';
 
 /**
- * メインCLI関数
+ * Main CLI function
  */
-async function main() {
+async function main(): Promise<void> {
     const parsed = parseArguments(process.argv);
 
-    // ヘルプ表示
+    // Display help
     if (parsed.options.help || parsed.command === 'help') {
         console.log(generateHelpMessage());
         process.exit(0);
     }
 
-    // バージョン表示
+    // Display version
     if (parsed.options.version) {
         console.log(`MySQL Performance Tester v${getVersion()}`);
         process.exit(0);
     }
 
-    // コマンドの実行
+    // Execute command
     const command = parsed.command || 'run';
 
     try {
         switch (command) {
             case 'run':
-                // 通常の順次テスト実行
+                // Sequential test execution
                 await runCommand(parsed.options);
                 break;
 
             case 'parallel':
-                // 並列負荷テスト実行
+                // Parallel load test execution
                 await parallelCommand(parsed.options);
                 break;
 
-            case 'analyze':
-                // 既存結果の分析
+            case 'analyze': {
+                // Analyze existing results
                 const resultPath = parsed.positional[0];
                 await analyzeCommand(parsed.options, resultPath);
                 break;
+            }
 
             case 'demo':
-                // デモモード（動作確認用）
+                // Demo mode (for verification)
                 await demoCommand(parsed.options);
                 break;
 
@@ -62,26 +63,27 @@ async function main() {
                 console.log('\nヘルプを表示するには: mysql-perf-test help');
                 process.exit(1);
         }
-    } catch (error) {
-        console.error('\n❌ 致命的なエラー:', error.message);
+    } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        console.error('\n❌ 致命的なエラー:', err.message);
         if (parsed.options.verbose) {
-            console.error(error.stack);
+            console.error(err.stack);
         }
         process.exit(1);
     }
 }
 
 /**
- * デモコマンド
+ * Demo command
  */
-async function demoCommand(options) {
+async function demoCommand(options: ParsedOptions): Promise<void> {
     console.log('\n' + '='.repeat(60));
     console.log('MySQL Performance Tester - デモモード'.padStart(40));
     console.log('='.repeat(60));
 
     console.log('\n🎯 デモモードで実行中...\n');
 
-    // 設定の作成
+    // Build configuration
     const dbConfig = createDbConfig({
         host:     options.host,
         port:     options.port,
@@ -91,12 +93,12 @@ async function demoCommand(options) {
     });
 
     const testConfig = createTestConfig({
-        testIterations: 5,    // デモ用に少なめ
-        enableWarmup:   false, // デモ用にウォームアップなし
+        testIterations: 5,    // Fewer iterations for demo
+        enableWarmup:   false, // No warmup for demo
         generateReport: false,
     });
 
-    let tester = null;
+    let tester: MySQLPerformanceTester | null = null;
 
     try {
         tester = new MySQLPerformanceTester(dbConfig, testConfig);
@@ -104,8 +106,8 @@ async function demoCommand(options) {
 
         console.log('✓ データベース接続成功\n');
 
-        // 簡単なテストを実行
-        const testQueries = [
+        // Execute simple tests
+        const testQueries: Array<{ name: string; query: string }> = [
             { name: 'デモ: 基本SELECT', query: 'SELECT 1 as test' },
             { name: 'デモ: 現在時刻', query: 'SELECT NOW() as current_time' },
             { name: 'デモ: データベース情報', query: 'SELECT DATABASE() as db_name, VERSION() as version' }
@@ -133,10 +135,11 @@ async function demoCommand(options) {
         console.log('  2. mysql-perf-test run を実行');
         console.log('  3. 詳細なヘルプ: mysql-perf-test help');
 
-    } catch (error) {
-        console.error('\n❌ エラーが発生しました:', error.message);
+    } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        console.error('\n❌ エラーが発生しました:', err.message);
         if (options.verbose) {
-            console.error(error.stack);
+            console.error(err.stack);
         }
         process.exit(1);
     } finally {
@@ -146,8 +149,8 @@ async function demoCommand(options) {
     }
 }
 
-// エラーハンドリング
-process.on('unhandledRejection', (error) => {
+// Error handling
+process.on('unhandledRejection', (error: unknown) => {
     console.error('\n❌ 未処理のエラー:', error);
     process.exit(1);
 });
@@ -162,8 +165,8 @@ process.on('SIGTERM', () => {
     process.exit(143);
 });
 
-// CLI実行
-main().catch((error) => {
+// CLI execution
+main().catch((error: unknown) => {
     console.error('\n❌ CLI実行エラー:', error);
     process.exit(1);
 });

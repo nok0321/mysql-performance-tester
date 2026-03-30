@@ -1,5 +1,5 @@
 /**
- * Run Command - 順次テスト実行コマンド
+ * Run Command - Sequential test execution command
  */
 
 import { createDbConfig } from '../../lib/config/database-configuration.js';
@@ -12,16 +12,29 @@ import { MarkdownExporter } from '../../lib/reports/exporters/markdown-exporter.
 import { generateTestName } from '../../lib/utils/formatter.js';
 import { promises as fs } from 'fs';
 import path from 'path';
+import type { ParsedOptions } from '../options.js';
+import type { TestConfig } from '../../lib/types/index.js';
+import type { TestResult } from '../../lib/models/test-result.js';
+
+/** Entry for a parallel test result stored alongside sequential results */
+interface ParallelResultEntry {
+    testName: string;
+    query: string;
+    parallelResults: unknown;
+    timestamp: string;
+}
+
+type CombinedResult = TestResult | ParallelResultEntry;
 
 /**
- * Run コマンド実行
+ * Execute the run command
  */
-export async function runCommand(options) {
+export async function runCommand(options: ParsedOptions): Promise<void> {
     console.log('\n' + '='.repeat(60));
     console.log('MySQL Performance Tester - 順次テスト実行'.padStart(40));
     console.log('='.repeat(60));
 
-    // 設定の作成
+    // Build configuration
     const dbConfig = createDbConfig({
         host:     options.host,
         port:     options.port,
@@ -54,53 +67,56 @@ export async function runCommand(options) {
         console.log(JSON.stringify({ dbConfig: { ...dbConfig, password: '***' }, testConfig }, null, 2));
     }
 
-    const testResults = [];
-    let tester = null;
-    let parallelTester = null;
+    const testResults: CombinedResult[] = [];
+    let tester: MySQLPerformanceTester | null = null;
+    let parallelTester: ParallelPerformanceTester | null = null;
 
     try {
-        // テスターの初期化
+        // Initialize tester
         tester = new MySQLPerformanceTester(dbConfig, testConfig);
         await tester.initialize();
 
-        // SQLファイルからテスト実行
+        // Execute tests from SQL files
         const sqlResults = await runTestsFromSQLFiles(tester, testConfig);
         testResults.push(...sqlResults);
 
-        // 並列テストも実行（skipParallelがfalseの場合）
+        // Run parallel tests as well (when skipParallel is false)
         if (!options.skipParallel) {
             try {
                 parallelTester = new ParallelPerformanceTester(dbConfig, testConfig);
                 await parallelTester.initialize();
 
-                const parallelResults = await runParallelTestsFromFiles(
+                await runParallelTestsFromFiles(
                     parallelTester,
                     testConfig,
                     testResults
                 );
-            } catch (error) {
-                console.log('\n⚠️ 並列テストをスキップ:', error.message);
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : String(error);
+                console.log('\n⚠️ 並列テストをスキップ:', message);
             }
         }
 
-        // 結果の保存
+        // Save results
         const resultDir = await saveResults(testResults, testConfig);
 
-        // レポート生成
+        // Generate report
         if (resultDir && testConfig.generateReport) {
-            await generateReport(testResults, testConfig, resultDir);
+            await generateReport(testResults, testConfig as unknown as Record<string, unknown>, resultDir);
         }
 
         console.log('\n' + '='.repeat(60));
         console.log('✅ すべてのテストが完了しました！'.padStart(40));
         console.log('='.repeat(60));
 
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('\n❌ エラーが発生しました:', error);
-        console.error(error.stack);
+        if (error instanceof Error) {
+            console.error(error.stack);
+        }
         process.exit(1);
     } finally {
-        // クリーンアップ
+        // Cleanup
         if (tester) {
             tester.printFileManagerSummary();
             await tester.cleanup();
@@ -112,14 +128,14 @@ export async function runCommand(options) {
 }
 
 /**
- * SQLファイルからテストを実行
+ * Execute tests from SQL files
  */
-async function runTestsFromSQLFiles(tester, config) {
+async function runTestsFromSQLFiles(tester: MySQLPerformanceTester, config: TestConfig): Promise<TestResult[]> {
     console.log('\n' + '='.repeat(60));
     console.log('SQLファイルベーステスト開始'.padStart(40));
     console.log('='.repeat(60));
 
-    const testResults = [];
+    const testResults: TestResult[] = [];
 
     try {
         const sqlDir = config.sqlDirectory;
@@ -127,12 +143,12 @@ async function runTestsFromSQLFiles(tester, config) {
 
         const files = await fs.readdir(sqlDir);
         const sqlFiles = files
-            .filter(f => f.endsWith('.sql'))
+            .filter((f: string) => f.endsWith('.sql'))
             .sort();
 
         console.log(`\n📁 SQLディレクトリ: ${sqlDir}`);
         console.log(`📄 検出されたSQLファイル: ${sqlFiles.length}件`);
-        sqlFiles.forEach(file => console.log(`   - ${file}`));
+        sqlFiles.forEach((file: string) => console.log(`   - ${file}`));
 
         if (sqlFiles.length === 0) {
             console.log('\n⚠ SQLファイルが見つかりませんでした');
@@ -154,24 +170,30 @@ async function runTestsFromSQLFiles(tester, config) {
             try {
                 const result = await tester.executeTestWithWarmup(testName, query);
                 testResults.push(result);
-            } catch (error) {
-                console.error(`❌ エラー in ${file}:`, error.message);
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : String(error);
+                console.error(`❌ エラー in ${file}:`, message);
             }
         }
 
         return testResults;
 
-    } catch (error) {
-        console.error(`❌ SQLファイル読み込みエラー: ${error.message}`);
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`❌ SQLファイル読み込みエラー: ${message}`);
         console.log(`確認してください: ${config.sqlDirectory}`);
         return testResults;
     }
 }
 
 /**
- * 並列テストをファイルから実行
+ * Execute parallel tests from files
  */
-async function runParallelTestsFromFiles(parallelTester, config, testResults) {
+async function runParallelTestsFromFiles(
+    parallelTester: ParallelPerformanceTester,
+    config: TestConfig,
+    testResults: CombinedResult[]
+): Promise<Record<string, unknown> | null> {
     console.log('\n' + '='.repeat(60));
     console.log('並列負荷テスト（複数SQLファイル）'.padStart(40));
     console.log('='.repeat(60));
@@ -180,7 +202,7 @@ async function runParallelTestsFromFiles(parallelTester, config, testResults) {
     const results = await parallelTester.executeParallelTestsFromFiles(parallelDir);
 
     if (results) {
-        Object.values(results).forEach(result => {
+        Object.values(results).forEach((result) => {
             if (result.metrics) {
                 testResults.push({
                     testName: `並列負荷テスト: ${result.strategy}`,
@@ -192,14 +214,14 @@ async function runParallelTestsFromFiles(parallelTester, config, testResults) {
         });
     }
 
-    return results;
+    return results as Record<string, unknown> | null;
 }
 
 
 /**
- * 結果の保存
+ * Save results to disk
  */
-async function saveResults(testResults, config) {
+async function saveResults(testResults: CombinedResult[], config: TestConfig): Promise<string | null> {
     console.log('\n' + '='.repeat(60));
     console.log('結果保存中...'.padStart(40));
     console.log('='.repeat(60));
@@ -222,16 +244,21 @@ async function saveResults(testResults, config) {
         console.log(`✓ 結果ディレクトリ: ${resultDir}`);
 
         return resultDir;
-    } catch (error) {
-        console.error(`❌ 結果保存エラー: ${error.message}`);
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`❌ 結果保存エラー: ${message}`);
         return null;
     }
 }
 
 /**
- * レポート生成
+ * Generate report
  */
-async function generateReport(testResults, config, resultDir) {
+async function generateReport(
+    testResults: CombinedResult[],
+    config: Record<string, unknown>,
+    resultDir: string
+): Promise<Record<string, string> | undefined> {
     console.log('\n' + '='.repeat(60));
     console.log('レポート生成中...'.padStart(40));
     console.log('='.repeat(60));
@@ -256,8 +283,10 @@ async function generateReport(testResults, config, resultDir) {
         }
 
         return exportedFiles;
-    } catch (error) {
-        console.error(`❌ レポート生成エラー: ${error.message}`);
-        console.error(error.stack);
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        const stack = error instanceof Error ? error.stack : undefined;
+        console.error(`❌ レポート生成エラー: ${message}`);
+        console.error(stack);
     }
 }
