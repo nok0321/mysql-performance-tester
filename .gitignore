@@ -28,5 +28,8 @@ temp/
 # パスワードを含む接続設定
 web/data/connections.json
 
+# TypeScript build output
+dist/
+
 # Claude Code personal settings (contains personal permissions, not team-shared)
 .claude/
