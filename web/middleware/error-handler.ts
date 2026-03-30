@@ -6,27 +6,35 @@
  * - Handles known error types (ValidationError, ID validation)
  */
 
-/**
- * @param {Error} err
- * @param {import('express').Request} req
- * @param {import('express').Response} res
- * @param {import('express').NextFunction} _next
- */
-export function errorHandler(err, req, res, _next) {
-    // ID validation errors (from validate-id.js) carry a status property
+import type { Request, Response, NextFunction } from 'express';
+
+/** Error with an optional HTTP status code (e.g. from validate-id) */
+interface HttpError extends Error {
+    status?: number;
+}
+
+export function errorHandler(
+    err: HttpError,
+    req: Request,
+    res: Response,
+    _next: NextFunction
+): void {
+    // ID validation errors (from validate-id.ts) carry a status property
     if (err.status) {
-        return res.status(err.status).json({
+        res.status(err.status).json({
             success: false,
             error: err.message || 'リクエストが不正です',
         });
+        return;
     }
 
-    // ValidationError from lib/utils/validator.js
+    // ValidationError from lib/utils/validator.ts
     if (err.name === 'ValidationError') {
-        return res.status(400).json({
+        res.status(400).json({
             success: false,
             error: err.message,
         });
+        return;
     }
 
     // Default: internal server error

@@ -1,0 +1,14 @@
+/**
+ * Async route handler wrapper
+ * Catches rejected promises and forwards to Express error middleware
+ */
+
+import type { Request, Response, NextFunction, RequestHandler } from 'express';
+
+export function asyncHandler(
+    fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>
+): RequestHandler {
+    return (req: Request, res: Response, next: NextFunction): void => {
+        Promise.resolve(fn(req, res, next)).catch(next);
+    };
+}

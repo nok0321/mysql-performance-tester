@@ -1,63 +1,68 @@
 /**
- * connections.js - 接続管理ルート
+ * connections.ts - Connection management routes
  * GET/POST/PUT/DELETE /api/connections
- * POST /api/connections/:id/test  ← 疎通確認
+ * POST /api/connections/:id/test  -- connectivity check
  */
 
 import { Router } from 'express';
+import type { Request, Response } from 'express';
 import * as store from '../store/connections-store.js';
 import { DatabaseConnection } from '../../lib/core/database-connection.js';
 import { createDbConfig } from '../../lib/config/database-configuration.js';
 import { validateId } from '../security/validate-id.js';
 import { asyncHandler } from '../middleware/async-handler.js';
 
-const router = Router();
+const router: Router = Router();
 
-/** 接続一覧 */
-router.get('/', asyncHandler(async (req, res) => {
+/** List all connections */
+router.get('/', asyncHandler(async (_req: Request, res: Response) => {
   const connections = await store.getAll();
   res.json({ success: true, data: connections });
 }));
 
-/** 接続追加 */
-router.post('/', asyncHandler(async (req, res) => {
-  const { name, host, port, database, user, password, poolSize } = req.body;
+/** Create a connection */
+router.post('/', asyncHandler(async (req: Request, res: Response) => {
+  const { name, host, port, database, user, password, poolSize } = req.body as store.CreateConnectionInput;
   if (!host || !database || !user) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'host, database, user は必須です'
     });
+    return;
   }
   const created = await store.create({ name, host, port, database, user, password, poolSize });
   res.status(201).json({ success: true, data: created });
 }));
 
-/** 接続更新 */
-router.put('/:id', asyncHandler(async (req, res) => {
-  const id = validateId(req.params.id, '接続ID');
-  const updated = await store.update(id, req.body);
+/** Update a connection */
+router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
+  const id = validateId(req.params.id as string, '接続ID');
+  const updated = await store.update(id, req.body as store.UpdateConnectionInput);
   if (!updated) {
-    return res.status(404).json({ success: false, error: '接続が見つかりません' });
+    res.status(404).json({ success: false, error: '接続が見つかりません' });
+    return;
   }
   res.json({ success: true, data: updated });
 }));
 
-/** 接続削除 */
-router.delete('/:id', asyncHandler(async (req, res) => {
-  const id = validateId(req.params.id, '接続ID');
+/** Delete a connection */
+router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
+  const id = validateId(req.params.id as string, '接続ID');
   const deleted = await store.remove(id);
   if (!deleted) {
-    return res.status(404).json({ success: false, error: '接続が見つかりません' });
+    res.status(404).json({ success: false, error: '接続が見つかりません' });
+    return;
   }
   res.json({ success: true });
 }));
 
-/** 疎通確認 (SELECT 1) */
-router.post('/:id/test', asyncHandler(async (req, res) => {
-  const id = validateId(req.params.id, '接続ID');
+/** Test connectivity (SELECT 1) */
+router.post('/:id/test', asyncHandler(async (req: Request, res: Response) => {
+  const id = validateId(req.params.id as string, '接続ID');
   const connectionData = await store.getById(id);
   if (!connectionData) {
-    return res.status(404).json({ success: false, error: '接続が見つかりません' });
+    res.status(404).json({ success: false, error: '接続が見つかりません' });
+    return;
   }
 
   const dbConfig = createDbConfig({
@@ -68,7 +73,7 @@ router.post('/:id/test', asyncHandler(async (req, res) => {
     database: connectionData.database,
   });
 
-  let db = null;
+  let db: DatabaseConnection | null = null;
   try {
     db = new DatabaseConnection(dbConfig);
     await db.initialize();
