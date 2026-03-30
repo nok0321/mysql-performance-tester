@@ -1,12 +1,12 @@
 /**
- * ConnectionsStore - 接続設定の JSON ファイル永続化
- * web/data/connections.json に接続先情報を保存・管理する
+ * ConnectionsStore - JSON file persistence for connection settings
+ * Saves and manages connection settings in web/data/connections.json
  *
- * セキュリティ対策:
- * - パスワードは AES-256-GCM で暗号化して保存（crypto.js 参照）
- * - update() は許可フィールドのみ受け付けるホワイトリスト方式
- * - getAll() はパスワードをマスクして返す
- * - getById() は内部用途のみ（パスワード含む）
+ * Security:
+ * - Passwords are encrypted with AES-256-GCM (see crypto.ts)
+ * - update() accepts only whitelisted fields
+ * - getAll() masks passwords before returning
+ * - getById() is for internal use only (includes password)
  */
 
 import fs from 'fs/promises';
@@ -15,9 +15,59 @@ import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 import { encrypt, decrypt } from '../security/crypto.js';
 
-// 書き込みを伴う操作の競合防止用インプロセスミューテックス
-let _lock = Promise.resolve();
-function withLock(fn) {
+/** Stored connection record */
+export interface ConnectionRecord {
+  id: string;
+  name: string;
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  password: string;
+  poolSize: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Connection record with masked password (returned by getAll/create/update) */
+export interface MaskedConnectionRecord {
+  id: string;
+  name: string;
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  passwordMasked: string;
+  poolSize: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Input for creating a new connection */
+export interface CreateConnectionInput {
+  name?: string;
+  host?: string;
+  port?: number | string;
+  database?: string;
+  user?: string;
+  password?: string;
+  poolSize?: number | string;
+}
+
+/** Input for updating an existing connection */
+export interface UpdateConnectionInput {
+  name?: string;
+  host?: string;
+  port?: number | string;
+  database?: string;
+  user?: string;
+  password?: string;
+  poolSize?: number | string;
+}
+
+// In-process mutex to prevent write conflicts
+let _lock: Promise<unknown> = Promise.resolve();
+function withLock<T>(fn: () => Promise<T>): Promise<T> {
   const next = _lock.then(fn);
   _lock = next.catch(() => {});
   return next;
@@ -27,23 +77,23 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR  = path.join(__dirname, '..', 'data');
 const STORE_FILE = path.join(DATA_DIR, 'connections.json');
 
-/** アトミック書き込み: tmp ファイルに書き込んでからリネーム */
-async function writeAtomic(filePath, data) {
+/** Atomic write: write to a tmp file then rename */
+async function writeAtomic(filePath: string, data: ConnectionRecord[]): Promise<void> {
   const tmp = filePath + '.tmp';
   await fs.writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
   await fs.rename(tmp, filePath);
 }
 
 /**
- * JSON ファイルを安全に読み込む。
- * パース失敗時は壊れたファイルをバックアップして空配列を返す。
+ * Safely read a JSON file.
+ * On parse failure, back up the corrupted file and return an empty array.
  */
-async function safeReadJson(filePath) {
+async function safeReadJson(filePath: string): Promise<ConnectionRecord[]> {
   const raw = await fs.readFile(filePath, 'utf8');
   try {
-    return JSON.parse(raw);
-  } catch (err) {
-    // バックアップを残してから空配列で復旧
+    return JSON.parse(raw) as ConnectionRecord[];
+  } catch {
+    // Back up the corrupted file and reset to empty
     const backup = `${filePath}.corrupt_${Date.now()}`;
     await fs.rename(filePath, backup).catch(() => {});
     console.error(`[Store] JSON parse failed for ${filePath}. Backed up to ${backup}. Resetting to empty.`);
@@ -52,13 +102,13 @@ async function safeReadJson(filePath) {
   }
 }
 
-/** update() で受け付けるフィールドのホワイトリスト */
+/** Whitelist of fields accepted by update() */
 const UPDATABLE_FIELDS = new Set(['name', 'host', 'port', 'database', 'user', 'password', 'poolSize']);
 
 /**
- * ストアの初期化（ファイルが存在しない場合は作成）
+ * Initialize the store (create the file if it does not exist)
  */
-async function ensureStore() {
+async function ensureStore(): Promise<void> {
   await fs.mkdir(DATA_DIR, { recursive: true });
   try {
     await fs.access(STORE_FILE);
@@ -68,10 +118,9 @@ async function ensureStore() {
 }
 
 /**
- * 全接続設定を取得（パスワードはマスク）
- * @returns {Promise<Array>}
+ * Get all connection settings (passwords are masked)
  */
-export async function getAll() {
+export async function getAll(): Promise<MaskedConnectionRecord[]> {
   await ensureStore();
   const connections = await safeReadJson(STORE_FILE);
   return connections.map(({ password, ...rest }) => ({
@@ -81,40 +130,35 @@ export async function getAll() {
 }
 
 /**
- * ID で接続設定を取得（パスワード含む内部用）
- * パスワードは復号して返す。
- * @param {string} id
- * @returns {Promise<Object|null>}
+ * Get a connection setting by ID (internal use - includes decrypted password)
  */
-export async function getById(id) {
+export async function getById(id: string): Promise<ConnectionRecord | null> {
   await ensureStore();
   const connections = await safeReadJson(STORE_FILE);
   const conn = connections.find(c => c.id === id) || null;
   if (!conn) return null;
 
-  // パスワードを復号して返す
+  // Decrypt password before returning
   return { ...conn, password: decrypt(conn.password) };
 }
 
 /**
- * 接続設定を追加（パスワードは暗号化して保存）
- * @param {Object} connection
- * @returns {Promise<Object>}
+ * Create a new connection setting (password is encrypted before storage)
  */
-export function create(connection) {
+export function create(connection: CreateConnectionInput): Promise<MaskedConnectionRecord> {
   return withLock(async () => {
     await ensureStore();
     const raw = await fs.readFile(STORE_FILE, 'utf8');
-    const connections = JSON.parse(raw);
+    const connections: ConnectionRecord[] = JSON.parse(raw);
 
-    const newConnection = {
+    const newConnection: ConnectionRecord = {
       id:        `conn_${randomUUID()}`,
       name:      connection.name     || `Connection ${connections.length + 1}`,
       host:      connection.host     || 'localhost',
       port:      Number(connection.port) || 3306,
       database:  connection.database || '',
       user:      connection.user     || 'root',
-      password:  encrypt(connection.password || ''),  // 暗号化して保存
+      password:  encrypt(connection.password || ''),  // encrypt before storing
       poolSize:  Number(connection.poolSize) || 10,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -129,29 +173,26 @@ export function create(connection) {
 }
 
 /**
- * 接続設定を更新（ホワイトリスト方式）
- * @param {string} id
- * @param {Object} updates
- * @returns {Promise<Object|null>}
+ * Update a connection setting (whitelist approach)
  */
-export function update(id, updates) {
+export function update(id: string, updates: UpdateConnectionInput): Promise<MaskedConnectionRecord | null> {
   return withLock(async () => {
     await ensureStore();
     const raw = await fs.readFile(STORE_FILE, 'utf8');
-    const connections = JSON.parse(raw);
+    const connections: ConnectionRecord[] = JSON.parse(raw);
 
     const index = connections.findIndex(c => c.id === id);
     if (index === -1) return null;
 
-    // ホワイトリスト: 許可されたフィールドのみ適用
-    const safeUpdates = {};
+    // Whitelist: only apply allowed fields
+    const safeUpdates: Record<string, unknown> = {};
     for (const field of UPDATABLE_FIELDS) {
       if (Object.prototype.hasOwnProperty.call(updates, field)) {
-        safeUpdates[field] = updates[field];
+        safeUpdates[field] = (updates as Record<string, unknown>)[field];
       }
     }
 
-    // ポートの型を保証
+    // Ensure numeric types
     if (safeUpdates.port !== undefined) {
       safeUpdates.port = Number(safeUpdates.port) || connections[index].port;
     }
@@ -159,17 +200,17 @@ export function update(id, updates) {
       safeUpdates.poolSize = Number(safeUpdates.poolSize) || connections[index].poolSize;
     }
 
-    // パスワードが更新される場合は暗号化
+    // Encrypt password if it is being updated
     if (Object.prototype.hasOwnProperty.call(safeUpdates, 'password')) {
-      safeUpdates.password = encrypt(safeUpdates.password || '');
+      safeUpdates.password = encrypt((safeUpdates.password as string) || '');
     }
 
     connections[index] = {
       ...connections[index],
       ...safeUpdates,
-      id,  // ID は変更不可
+      id,  // ID cannot be changed
       updatedAt: new Date().toISOString()
-    };
+    } as ConnectionRecord;
 
     await writeAtomic(STORE_FILE, connections);
     const { password, ...rest } = connections[index];
@@ -178,15 +219,13 @@ export function update(id, updates) {
 }
 
 /**
- * 接続設定を削除
- * @param {string} id
- * @returns {Promise<boolean>}
+ * Delete a connection setting
  */
-export function remove(id) {
+export function remove(id: string): Promise<boolean> {
   return withLock(async () => {
     await ensureStore();
     const raw = await fs.readFile(STORE_FILE, 'utf8');
-    const connections = JSON.parse(raw);
+    const connections: ConnectionRecord[] = JSON.parse(raw);
 
     const index = connections.findIndex(c => c.id === id);
     if (index === -1) return false;

@@ -10,9 +10,9 @@ const MIN_KEY_LENGTH = 32;
 /**
  * Validate environment variables. Exits process on failure.
  */
-export function validateEnv() {
-    const errors = [];
-    const warnings = [];
+export function validateEnv(): void {
+    const errors: string[] = [];
+    const warnings: string[] = [];
 
     // ─── Required ─────────────────────────────────────────────────────────
     const encKey = process.env.ENCRYPTION_KEY;

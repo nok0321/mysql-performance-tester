@@ -3,17 +3,22 @@
   "version": "1.0.0",
   "description": "Web API server for MySQL Performance Tester",
   "type": "module",
-  "main": "server.js",
+  "main": "server.ts",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
+    "start": "tsx server.ts",
+    "dev": "tsx watch server.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",
+    "dotenv": "^16.0.0",
     "express": "^4.18.2",
     "express-rate-limit": "^7.0.0",
     "helmet": "^8.0.0",
-    "ws": "^8.16.0",
-    "dotenv": "^16.0.0"
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/ws": "^8.18.1"
   }
 }
