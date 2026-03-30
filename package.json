@@ -20,13 +20,14 @@
     "./models": "./lib/models/index.js"
   },
   "scripts": {
-    "start": "node cli/index.js run",
-    "test": "node cli/index.js demo",
+    "start": "tsx cli/index.js run",
+    "test": "tsx cli/index.js demo",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
-    "test:demo": "node cli/index.js demo",
-    "test:parallel": "node cli/index.js parallel",
-    "help": "node cli/index.js help"
+    "test:demo": "tsx cli/index.js demo",
+    "test:parallel": "tsx cli/index.js parallel",
+    "help": "tsx cli/index.js help",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [
     "mysql",
@@ -51,7 +52,10 @@
     "mysql2": "^3.6.0"
   },
   "devDependencies": {
+    "@types/node": "^25.5.0",
     "dotenv": "^16.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2",
     "vitest": "^4.1.2"
   },
   "repository": {
