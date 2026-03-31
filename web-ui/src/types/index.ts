@@ -1,6 +1,21 @@
 /**
  * Shared type definitions for the MySQL Performance Tester web UI
+ *
+ * Types shared with lib/ are re-exported from @shared/types.
+ * UI-specific types (forms, state management, simplified API shapes) are defined here.
  */
+
+// Re-export shared types from lib/types (single source of truth)
+export type {
+  QueryEventType,
+  QueryEvent,
+  QueryFingerprintSummary,
+  Recommendation,
+  PerformanceGrade,
+} from '@shared/types';
+
+// Import shared types for local use in interface definitions
+import type { QueryEventType, QueryEvent } from '@shared/types';
 
 // ─── Connection ───────────────────────────────────────────────────────────
 
@@ -341,20 +356,7 @@ export interface StatCardItem {
 
 // ─── Query History ──────────────────────────────────────────────────────
 
-export type QueryEventType =
-  | 'index_added'
-  | 'index_removed'
-  | 'schema_change'
-  | 'config_change'
-  | 'custom';
-
-export interface QueryFingerprintSummary {
-  queryFingerprint: string;
-  queryText: string;
-  latestTestName: string;
-  runCount: number;
-  latestRunAt: string;
-}
+// QueryEventType, QueryEvent, QueryFingerprintSummary are re-exported from @shared/types above
 
 export interface QueryHistoryEntry {
   testId: string;
@@ -362,15 +364,6 @@ export interface QueryHistoryEntry {
   timestamp: string;
   statistics: Statistics;
   explainAccessType?: string;
-}
-
-export interface QueryEvent {
-  id: string;
-  queryFingerprint: string;
-  label: string;
-  type: QueryEventType;
-  timestamp: string;
-  createdAt: string;
 }
 
 export interface QueryTimeline {
