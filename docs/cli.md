@@ -3,7 +3,7 @@
 ## 基本的な使い方
 
 ```bash
-node cli/index.js <command> [options]
+tsx cli/index.ts <command> [options]
 # または npm scripts 経由
 npm run <script>
 ```
@@ -17,7 +17,7 @@ npm run <script>
 `./sql/` ディレクトリの `.sql` ファイルをファイル名順に1件ずつ実行します。
 
 ```bash
-node cli/index.js run
+tsx cli/index.ts run
 npm start
 ```
 
@@ -49,7 +49,7 @@ sql/
 QPS・TPS・P95 などを計測します。
 
 ```bash
-node cli/index.js parallel
+tsx cli/index.ts parallel
 npm run test:parallel
 ```
 
@@ -76,16 +76,16 @@ parallel/
 保存済みのテスト結果 JSON からレポートを再生成します。
 
 ```bash
-node cli/index.js analyze <result-path>
+tsx cli/index.ts analyze <result-path>
 ```
 
 **例:**
 ```bash
 # ディレクトリを指定（results.json を自動検出）
-node cli/index.js analyze ./performance_results/2025-01-15T10-30-00
+tsx cli/index.ts analyze ./performance_results/2025-01-15T10-30-00
 
 # ファイルを直接指定
-node cli/index.js analyze ./performance_results/2025-01-15T10-30-00/results.json
+tsx cli/index.ts analyze ./performance_results/2025-01-15T10-30-00/results.json
 ```
 
 ---
@@ -95,7 +95,7 @@ node cli/index.js analyze ./performance_results/2025-01-15T10-30-00/results.json
 DB 接続の疎通確認と簡単なクエリ実行で動作を確認します。
 
 ```bash
-node cli/index.js demo
+tsx cli/index.ts demo
 npm run test:demo
 ```
 
@@ -104,7 +104,7 @@ npm run test:demo
 ### `help` — ヘルプ表示
 
 ```bash
-node cli/index.js help
+tsx cli/index.ts help
 npm run help
 ```
 
@@ -132,7 +132,13 @@ performance_results/
 
 | スクリプト | コマンド | 説明 |
 |---|---|---|
-| `npm start` | `node cli/index.js run` | 順次テスト実行 |
-| `npm run test:demo` | `node cli/index.js demo` | デモ実行 |
-| `npm run test:parallel` | `node cli/index.js parallel` | 並列テスト実行 |
-| `npm run help` | `node cli/index.js help` | ヘルプ表示 |
+| `npm start` | `tsx cli/index.ts run` | 順次テスト実行 |
+| `npm run test:demo` | `tsx cli/index.ts demo` | デモ実行 |
+| `npm run test:parallel` | `tsx cli/index.ts parallel` | 並列テスト実行 |
+| `npm run help` | `tsx cli/index.ts help` | ヘルプ表示 |
+| `npm run test:unit` | `vitest run --project unit` | ユニットテスト |
+| `npm run test:integration` | `vitest run --project integration` | 統合テスト（MySQL 必須） |
+| `npm run test:all` | `vitest run` | 全テスト実行 |
+| `npm run typecheck` | `tsc --noEmit` | TypeScript 型チェック |
+| `npm run docker:test:up` | `docker compose ... up` | テスト用 MySQL 起動 |
+| `npm run docker:test:down` | `docker compose ... down` | テスト用 MySQL 停止 |
