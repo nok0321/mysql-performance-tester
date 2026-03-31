@@ -28,11 +28,29 @@ export function useWebSocket(onMessage: WsMessageHandler): {
   const pendingSubscribesRef = useRef<Set<string>>(new Set());
   const connectRef = useRef<(() => void) | null>(null);
 
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     if (!mountedRef.current) return;
 
     try {
-      const ws = new WebSocket(WS_URL);
+      // Fetch a one-time authentication token before opening the WebSocket
+      let wsUrl = WS_URL;
+      try {
+        const res = await fetch('/api/ws-token');
+        if (res.ok) {
+          const data = (await res.json()) as { success: boolean; token: string };
+          if (data.success && data.token) {
+            const separator = WS_URL.includes('?') ? '&' : '?';
+            wsUrl = `${WS_URL}${separator}token=${data.token}`;
+          }
+        }
+      } catch {
+        // Token fetch failed — attempt connection without token (localhost dev fallback)
+        console.warn('[WS] Failed to fetch auth token, connecting without token');
+      }
+
+      if (!mountedRef.current) return;
+
+      const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -61,7 +79,7 @@ export function useWebSocket(onMessage: WsMessageHandler): {
         );
         retryCountRef.current += 1;
         console.log(`[WS] Disconnected. Reconnecting in ${delay}ms...`);
-        reconnectTimerRef.current = setTimeout(() => connectRef.current?.(), delay);
+        reconnectTimerRef.current = setTimeout(() => { void connectRef.current?.(); }, delay);
       };
 
       ws.onerror = () => {
@@ -76,7 +94,7 @@ export function useWebSocket(onMessage: WsMessageHandler): {
 
   useEffect(() => {
     mountedRef.current = true;
-    connect();
+    void connect();
     return () => {
       mountedRef.current = false;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);

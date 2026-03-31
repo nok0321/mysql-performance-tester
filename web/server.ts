@@ -33,6 +33,7 @@ import testsRouter from './routes/tests.js';
 import reportsRouter from './routes/reports.js';
 import historyRouter from './routes/history.js';
 import { errorHandler } from './middleware/error-handler.js';
+import { wsTokenManager } from './security/ws-token.js';
 
 /** Extended WebSocket with subscription management */
 interface SubscribableWebSocket extends WsWebSocket {
@@ -108,13 +109,24 @@ const LOCALHOST_ADDRS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 wss.on('connection', (ws: SubscribableWebSocket, req) => {
   const clientIp = req.socket.remoteAddress;
 
-  // TODO: Implement token-based authentication for remote access
-  //   e.g., ws://host:port?token=xxx -> validate token from req.url
-  // Reject WebSocket connections from non-localhost
-  if (!LOCALHOST_ADDRS.has(clientIp ?? '')) {
-    console.warn(`[WS] Rejected non-localhost connection from: ${clientIp}`);
-    ws.close(1008, 'Forbidden');
-    return;
+  // Token-based authentication for WebSocket connections
+  const url = new URL(req.url || '', 'http://localhost');
+  const token = url.searchParams.get('token');
+
+  if (token) {
+    // Validate one-time token (works for both local and remote clients)
+    if (!wsTokenManager.validate(token)) {
+      console.warn(`[WS] Rejected connection with invalid/expired token from: ${clientIp}`);
+      ws.close(4001, 'Invalid or expired token');
+      return;
+    }
+  } else {
+    // Fallback: allow localhost without token (development convenience)
+    if (!LOCALHOST_ADDRS.has(clientIp ?? '')) {
+      console.warn(`[WS] Rejected non-localhost connection without token from: ${clientIp}`);
+      ws.close(4001, 'Invalid or expired token');
+      return;
+    }
   }
 
   console.log(`[WS] Client connected: ${clientIp}`);
@@ -159,6 +171,12 @@ app.use('/api/tests', testRateLimit, testsRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/history', historyRouter);
 
+// ─── WebSocket token endpoint ────────────────────────────────────────────
+app.get('/api/ws-token', (_req: Request, res: Response) => {
+  const token = wsTokenManager.generate();
+  res.json({ success: true, token });
+});
+
 // ─── Health check ────────────────────────────────────────────────────────
 app.get('/api/health', (_req: Request, res: Response) => {
   res.json({
@@ -182,6 +200,9 @@ httpServer.listen(PORT, () => {
 // ─── Graceful Shutdown ──────────────────────────────────────────────────
 function gracefulShutdown(signal: string): void {
   console.log(`\n[Server] ${signal} received. Shutting down gracefully...`);
+
+  // Clean up token manager
+  wsTokenManager.destroy();
 
   // Reject new WebSocket connections and close existing clients
   wss.clients.forEach(client => client.close(1001, 'Server shutting down'));
