@@ -9,15 +9,16 @@ package-lock.json
 .env
 .env.local
 .env.*.local
+.env.test
 
 # Test results and outputs
 performance_results/
 debug-output/
 *.log
 
-# Temporary files
-sql/
-parallel/
+# SQL test files (root-level only)
+/sql/
+/parallel/
 
 # Temporary files
 tmp/
