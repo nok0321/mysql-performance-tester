@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { fingerprintQuery } from '../../lib/utils/query-fingerprint.js';
 
 describe('fingerprintQuery', () => {
-    it('returns a 16-char hex hash', () => {
+    it('returns a 32-char hex hash (128-bit)', () => {
         const fp = fingerprintQuery('SELECT * FROM users');
-        expect(fp.hash).toMatch(/^[0-9a-f]{16}$/);
+        expect(fp.hash).toMatch(/^[0-9a-f]{32}$/);
     });
 
     it('returns normalized SQL', () => {
@@ -102,7 +102,32 @@ describe('fingerprintQuery', () => {
 
     it('handles empty-ish input gracefully', () => {
         const fp = fingerprintQuery('   ');
-        expect(fp.hash).toMatch(/^[0-9a-f]{16}$/);
+        expect(fp.hash).toMatch(/^[0-9a-f]{32}$/);
         expect(fp.normalized).toBe('');
+    });
+
+    // ── Scientific notation & hex literals ──────────────────────────────
+
+    it('normalizes scientific notation literals', () => {
+        const a = fingerprintQuery('SELECT * FROM t WHERE val > 1e5');
+        const b = fingerprintQuery('SELECT * FROM t WHERE val > 3.14e-2');
+        const c = fingerprintQuery('SELECT * FROM t WHERE val > 42');
+        expect(a.hash).toBe(b.hash);
+        expect(a.hash).toBe(c.hash);
+        expect(a.normalized).toContain('?');
+        expect(a.normalized).not.toMatch(/\d/);
+    });
+
+    it('normalizes hex literals', () => {
+        const a = fingerprintQuery('SELECT * FROM t WHERE flags = 0xFF');
+        const b = fingerprintQuery('SELECT * FROM t WHERE flags = 0x00');
+        const c = fingerprintQuery('SELECT * FROM t WHERE flags = 255');
+        expect(a.hash).toBe(b.hash);
+        expect(a.hash).toBe(c.hash);
+    });
+
+    it('normalizes mixed numeric literal types', () => {
+        const fp = fingerprintQuery('SELECT * FROM t WHERE a = 1e3 AND b = 0xAB AND c = 3.14');
+        expect(fp.normalized).toBe('select * from t where a = ? and b = ? and c = ?');
     });
 });
