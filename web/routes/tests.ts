@@ -28,6 +28,7 @@ import { createDbConfig } from '../../lib/config/database-configuration.js';
 import { createTestConfig } from '../../lib/config/test-configuration.js';
 import { validateQuery } from '../../lib/utils/validator.js';
 import { computeComparisonDelta } from '../../lib/utils/comparison-delta.js';
+import { fingerprintQuery } from '../../lib/utils/query-fingerprint.js';
 import { validateId } from '../security/validate-id.js';
 import { asyncHandler } from '../middleware/async-handler.js';
 import type { DbConfig, TestConfig } from '../../lib/types/index.js';
@@ -285,10 +286,15 @@ router.post('/single', async (req: Request, res: Response) => {
 
       const result = await tester.executeTestWithWarmup(testName, sqlText.trim());
 
-      // Save result
+      // Save result with query fingerprint for history tracking
+      const fingerprint = fingerprintQuery(sqlText.trim());
       await fs.mkdir(RESULTS_DIR, { recursive: true });
       const resultPath = path.join(RESULTS_DIR, `${testId}.json`);
-      await fs.writeFile(resultPath, JSON.stringify({ testId, testName, result }, null, 2));
+      await fs.writeFile(resultPath, JSON.stringify({
+        testId, testName, result,
+        queryFingerprint: fingerprint.hash,
+        queryNormalized: fingerprint.normalized,
+      }, null, 2));
 
       broadcast(wss, testId, 'complete', {
         testId,
@@ -498,11 +504,14 @@ router.post('/comparison', async (req: Request, res: Response) => {
           ? computeComparisonDelta(resultA.statistics, resultB.statistics)
           : null;
 
+        const fpA = fingerprintQuery(sqlTextA.trim());
+        const fpB = fingerprintQuery(sqlTextB.trim());
         await fs.mkdir(RESULTS_DIR, { recursive: true });
         const resultPath = path.join(RESULTS_DIR, `${testId}.json`);
         await fs.writeFile(resultPath, JSON.stringify({
           type: 'comparison', testId, executionMode,
           testNameA, testNameB,
+          queryFingerprintA: fpA.hash, queryFingerprintB: fpB.hash,
           resultA, resultB, delta,
         }, null, 2));
 
@@ -530,11 +539,14 @@ router.post('/comparison', async (req: Request, res: Response) => {
           ? computeComparisonDelta(resultA.statistics, resultB.statistics)
           : null;
 
+        const fpA = fingerprintQuery(sqlTextA.trim());
+        const fpB = fingerprintQuery(sqlTextB.trim());
         await fs.mkdir(RESULTS_DIR, { recursive: true });
         const resultPath = path.join(RESULTS_DIR, `${testId}.json`);
         await fs.writeFile(resultPath, JSON.stringify({
           type: 'comparison', testId, executionMode,
           testNameA, testNameB,
+          queryFingerprintA: fpA.hash, queryFingerprintB: fpB.hash,
           resultA, resultB, delta,
         }, null, 2));
 
