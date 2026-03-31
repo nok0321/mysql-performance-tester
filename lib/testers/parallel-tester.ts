@@ -110,8 +110,10 @@ export class ParallelPerformanceTester extends EventEmitter {
         this.db ??= new DatabaseConnection(this.dbConfig);
         await this.db.initialize();
         // Use injected parallelExecutor if provided; otherwise create one from the pool.
-        // pool is private on DatabaseConnection, so we access it via type assertion.
-        const pool = (this.db as unknown as { pool: Pool }).pool;
+        const pool = this.db.getPool();
+        if (!pool) {
+            throw new Error('Database pool is not initialized');
+        }
         this.parallelExecutor = this._parallelExecutorDep ?? new ParallelExecutor(pool);
         this._initialized = true;
     }

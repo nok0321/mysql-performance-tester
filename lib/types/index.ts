@@ -182,13 +182,13 @@ export interface TestResult {
     durations: number[];
     statistics: StatisticsResult;
     explainAnalyze?: ExplainResult;
-    bufferPoolAnalysis?: object;
-    performanceSchemaAnalysis?: object;
+    bufferPoolAnalysis?: BufferPoolAnalysisResult | null;
+    performanceSchemaAnalysis?: PerformanceSchemaMetrics | null;
     warmupAnalysis?: WarmupAnalysis;
 }
 
 export interface ExplainResult {
-    data: object | null;
+    data: Record<string, string>[] | null;
     analyze?: {
         tree: string;
     };
@@ -266,13 +266,20 @@ export type PerformanceGrade = 'A+' | 'A' | 'B' | 'C' | 'D' | 'F';
 
 // ─── Analysis Report ────────────────────────────────────────────────────
 
+export interface AnalysisReportSummary {
+    totalTests: number;
+    totalDuration: number;
+    averageDuration: number;
+    overallGrade: PerformanceGrade;
+}
+
 export interface AnalysisReportData {
     testResults: TestResult[];
-    summary: object;
-    performanceAnalysis: object;
-    bufferPoolAnalysis: object;
-    queryAnalysis: object;
-    errorAnalysis: object;
+    summary: AnalysisReportSummary;
+    performanceAnalysis: PerformanceSchemaMetrics | null;
+    bufferPoolAnalysis: BufferPoolAnalysisResult | null;
+    queryAnalysis: ExplainQueryResult | null;
+    errorAnalysis: Record<string, number> | null;
     recommendations: Recommendation[];
 }
 

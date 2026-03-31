@@ -13,7 +13,15 @@
  */
 
 import { StatisticsCalculator } from '../statistics/statistics-calculator.js';
-import type { StatisticsResult } from '../types/index.js';
+import type {
+    StatisticsResult,
+    BufferPoolAnalysisResult,
+    OptimizerTraceResult,
+    ExplainAnalyzeResult,
+    ExplainQueryResult,
+    PerformanceSchemaMetrics,
+} from '../types/index.js';
+import type { WarmupSummary } from '../warmup/warmup-manager.js';
 
 /** Single iteration execution result */
 export interface ExecutionResult {
@@ -70,14 +78,14 @@ interface TestResultJSON {
     testName: string;
     query: string;
     timestamp: string;
-    warmup: unknown;
+    warmup: WarmupSummary | null;
     statistics: StatisticsResult | null;
     simpleStatistics: SimpleStatistics | null;
-    bufferPool: unknown;
-    optimizerTrace: unknown;
-    explainAnalyze: unknown;
-    performanceSchema: unknown;
-    parallelResults: unknown;
+    bufferPool: BufferPoolAnalysisResult | null;
+    optimizerTrace: OptimizerTraceResult | null;
+    explainAnalyze: ExplainAnalyzeResult | ExplainQueryResult | null;
+    performanceSchema: PerformanceSchemaMetrics | null;
+    parallelResults: Record<string, unknown> | null;
     rawResults: ExecutionResult[];
 }
 
@@ -90,12 +98,12 @@ export class TestResult {
     public rawDurations: number[];
     public results: ExecutionResult[];
     public statistics: StatisticsResult | null;
-    public warmupResult: unknown;
-    public bufferPoolAnalysis: unknown;
-    public optimizerTrace: unknown;
-    public explainAnalyze: unknown;
-    public performanceSchemaMetrics: unknown;
-    public parallelResults: unknown;
+    public warmupResult: WarmupSummary | null;
+    public bufferPoolAnalysis: BufferPoolAnalysisResult | null;
+    public optimizerTrace: OptimizerTraceResult | null;
+    public explainAnalyze: ExplainAnalyzeResult | ExplainQueryResult | null;
+    public performanceSchemaMetrics: PerformanceSchemaMetrics | null;
+    public parallelResults: Record<string, unknown> | null;
     public readonly timestamp: string;
 
     /**
