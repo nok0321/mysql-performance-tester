@@ -31,6 +31,7 @@ import { computeComparisonDelta } from '../../lib/utils/comparison-delta.js';
 import { fingerprintQuery } from '../../lib/utils/query-fingerprint.js';
 import { validateId } from '../security/validate-id.js';
 import { asyncHandler } from '../middleware/async-handler.js';
+import { parsePagination, paginate } from '../middleware/pagination.js';
 import type { DbConfig, TestConfig } from '../../lib/types/index.js';
 
 // ─── Extended WebSocket types for subscription management ────────────────
@@ -569,7 +570,7 @@ router.post('/comparison', async (req: Request, res: Response) => {
 });
 
 // ─── Results list ────────────────────────────────────────────────────────
-router.get('/results', asyncHandler(async (_req: Request, res: Response) => {
+router.get('/results', asyncHandler(async (req: Request, res: Response) => {
   await fs.mkdir(RESULTS_DIR, { recursive: true });
   const files = await fs.readdir(RESULTS_DIR);
   const jsonFiles = files.filter(f => f.endsWith('.json'));
@@ -587,7 +588,9 @@ router.get('/results', asyncHandler(async (_req: Request, res: Response) => {
   );
 
   results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  res.json({ success: true, data: results });
+
+  const { limit, offset } = parsePagination(req);
+  res.json(paginate(results, limit, offset));
 }));
 
 // ─── Result detail ───────────────────────────────────────────────────────

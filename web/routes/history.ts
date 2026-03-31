@@ -18,6 +18,7 @@ import { fingerprintQuery } from '../../lib/utils/query-fingerprint.js';
 import { computeComparisonDelta } from '../../lib/utils/comparison-delta.js';
 import * as eventsStore from '../store/events-store.js';
 import { asyncHandler } from '../middleware/async-handler.js';
+import { parsePagination, paginate } from '../middleware/pagination.js';
 import type { QueryFingerprintSummary, QueryHistoryEntry, QueryEventType, StatisticsResult } from '../../lib/types/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -78,7 +79,7 @@ function resolveFingerprint(r: ParsedSingleResult): string | null {
 
 // ─── GET /fingerprints ──────────────────────────────────────────────────
 
-router.get('/fingerprints', asyncHandler(async (_req: Request, res: Response) => {
+router.get('/fingerprints', asyncHandler(async (req: Request, res: Response) => {
   const results = await loadSingleResults();
 
   // Group by fingerprint
@@ -123,7 +124,8 @@ router.get('/fingerprints', asyncHandler(async (_req: Request, res: Response) =>
     }))
     .sort((a, b) => b.latestRunAt.localeCompare(a.latestRunAt));
 
-  res.json({ success: true, data: summaries });
+  const { limit, offset } = parsePagination(req);
+  res.json(paginate(summaries, limit, offset));
 }));
 
 // ─── GET /:fingerprint ──────────────────────────────────────────────────
@@ -171,9 +173,13 @@ router.get('/:fingerprint', asyncHandler(async (req: Request, res: Response) => 
 
   const events = await eventsStore.listByFingerprint(fp);
 
+  const { limit, offset } = parsePagination(req);
+  const paginatedEntries = entries.slice(offset, offset + limit);
+
   res.json({
     success: true,
-    data: { queryFingerprint: fp, queryText, entries, events },
+    data: { queryFingerprint: fp, queryText, entries: paginatedEntries, events },
+    pagination: { total: entries.length, limit, offset },
   });
 }));
 
