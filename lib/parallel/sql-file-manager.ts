@@ -101,8 +101,8 @@ export class SQLFileManager {
             return this.sqlFilePool.length > 0;
 
         } catch (error) {
-            console.error(`SQLファイル読み込みエラー: ${(error as Error).message}`);
-            console.error(`ディレクトリ確認: ${this.parallelSQLDir}`);
+            console.error(`SQL file read error: ${(error as Error).message}`);
+            console.error(`Directory: ${this.parallelSQLDir}`);
             return false;
         }
     }

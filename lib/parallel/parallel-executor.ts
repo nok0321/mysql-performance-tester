@@ -350,7 +350,7 @@ export class ParallelExecutor {
             const sqlFile = strategy.selectSQLFile(threadId, iteration, testIterations);
 
             if (!sqlFile) {
-                console.warn(`⚠️ Thread ${threadId}: SQLファイルが選択できませんでした`);
+                console.warn(`⚠️ Thread ${threadId}: No SQL file selected`);
                 continue;
             }
 

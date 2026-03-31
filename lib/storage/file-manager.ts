@@ -92,9 +92,9 @@ export class FileManager {
 
         try {
             await fs.mkdir(this.config.outputDir, { recursive: true });
-            console.log(`📁 デバッグ出力ディレクトリ: ${this.config.outputDir}`);
+            console.log(`📁 Debug output directory: ${this.config.outputDir}`);
         } catch (error) {
-            console.warn(`⚠️ 出力ディレクトリ作成エラー: ${(error as Error).message}`);
+            console.warn(`⚠️ Output directory creation error: ${(error as Error).message}`);
         }
     }
 
@@ -134,10 +134,10 @@ export class FileManager {
                 await fs.writeFile(treeFilePath, analyzeResult.tree, 'utf8');
             }
 
-            console.log(`💾 EXPLAIN ANALYZE保存: ${fileName}`);
+            console.log(`💾 EXPLAIN ANALYZE saved: ${fileName}`);
             return filePath;
         } catch (error) {
-            console.warn(`⚠️ EXPLAIN ANALYZE保存エラー: ${(error as Error).message}`);
+            console.warn(`⚠️ EXPLAIN ANALYZE save error: ${(error as Error).message}`);
             return null;
         }
     }
@@ -171,10 +171,10 @@ export class FileManager {
             };
 
             await this.writeJsonFile(filePath, output);
-            console.log(`💾 Optimizer Trace保存: ${fileName}`);
+            console.log(`💾 Optimizer Trace saved: ${fileName}`);
             return filePath;
         } catch (error) {
-            console.warn(`⚠️ Optimizer Trace保存エラー: ${(error as Error).message}`);
+            console.warn(`⚠️ Optimizer Trace save error: ${(error as Error).message}`);
             return null;
         }
     }
@@ -207,10 +207,10 @@ export class FileManager {
             };
 
             await this.writeJsonFile(filePath, output);
-            console.log(`💾 クエリプラン保存: ${fileName}`);
+            console.log(`💾 Query plan saved: ${fileName}`);
             return filePath;
         } catch (error) {
-            console.warn(`⚠️ クエリプラン保存エラー: ${(error as Error).message}`);
+            console.warn(`⚠️ Query plan save error: ${(error as Error).message}`);
             return null;
         }
     }
@@ -245,10 +245,10 @@ export class FileManager {
             };
 
             await this.writeJsonFile(filePath, output);
-            console.log(`💾 デバッグ情報保存: ${fileName}`);
+            console.log(`💾 Debug info saved: ${fileName}`);
             return filePath;
         } catch (error) {
-            console.warn(`⚠️ デバッグ情報保存エラー: ${(error as Error).message}`);
+            console.warn(`⚠️ Debug info save error: ${(error as Error).message}`);
             return null;
         }
     }
@@ -299,7 +299,7 @@ export class FileManager {
 
         // File size check
         if (Buffer.byteLength(jsonString, 'utf8') > this.config.maxFileSize) {
-            console.warn(`⚠️ ファイルサイズが上限を超えています: ${filePath}`);
+            console.warn(`⚠️ File size exceeds limit: ${filePath}`);
             // Save a compact version when oversized
             const compactString = JSON.stringify(data);
             await fs.writeFile(filePath, compactString, 'utf8');
@@ -356,10 +356,10 @@ export class FileManager {
             }
 
             if (deletedCount > 0) {
-                console.log(`🗑️ ${deletedCount}個の古いファイルを削除しました`);
+                console.log(`🗑️ ${deletedCount} old file(s) deleted`);
             }
         } catch (error) {
-            console.warn(`⚠️ クリーンアップエラー: ${(error as Error).message}`);
+            console.warn(`⚠️ Cleanup error: ${(error as Error).message}`);
         }
     }
 

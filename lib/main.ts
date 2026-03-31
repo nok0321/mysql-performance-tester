@@ -136,14 +136,14 @@ export class MainTestRunner {
                     const result = await this.tester.executeTestWithWarmup(testName, query);
                     this.testResults.push(result);
                 } catch (error) {
-                    console.error(`❌ エラー in ${file}:`, (error as Error).message);
+                    console.error(`❌ Error in ${file}:`, (error as Error).message);
                 }
             }
 
             return this.testResults;
 
         } catch (error) {
-            console.error(`❌ SQLファイル読み込みエラー: ${(error as Error).message}`);
+            console.error(`❌ SQL file read error: ${(error as Error).message}`);
             console.log(`確認してください: ${this.testConfig.sqlDirectory}`);
             return [];
         }
@@ -240,7 +240,7 @@ export class MainTestRunner {
 
             return resultDir;
         } catch (error) {
-            console.error(`❌ 結果保存エラー: ${(error as Error).message}`);
+            console.error(`❌ Result save error: ${(error as Error).message}`);
             return null;
         }
     }
@@ -289,7 +289,7 @@ export class MainTestRunner {
 
             return exportedFiles as Record<string, string>;
         } catch (error) {
-            console.error(`❌ レポート生成エラー: ${(error as Error).message}`);
+            console.error(`❌ Report generation error: ${(error as Error).message}`);
             console.error((error as Error).stack);
         }
     }

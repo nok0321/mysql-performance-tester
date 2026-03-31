@@ -54,7 +54,7 @@ export class PerformanceSchemaAnalyzer extends BaseAnalyzer {
 
             return metrics;
         } catch (error) {
-            console.warn(`Performance Schemaメトリクス収集エラー: ${(error as Error).message}`);
+            console.warn(`Performance Schema metrics collection error: ${(error as Error).message}`);
             return null;
         }
     }
@@ -90,6 +90,7 @@ export class PerformanceSchemaAnalyzer extends BaseAnalyzer {
 
             return stats;
         } catch (_error) {
+            console.warn('Buffer pool stats query error:', (_error as Error).message);
             return null;
         }
     }
@@ -123,6 +124,7 @@ export class PerformanceSchemaAnalyzer extends BaseAnalyzer {
                 rowsSent: row.total_rows_sent as number,
             }));
         } catch (_error) {
+            console.warn('Top queries fetch error:', (_error as Error).message);
             return null;
         }
     }
@@ -151,6 +153,7 @@ export class PerformanceSchemaAnalyzer extends BaseAnalyzer {
                 totalWait: parseFloat((row.total_wait_ms as number | undefined)?.toFixed(3) ?? '0') || 0,
             }));
         } catch (_error) {
+            console.warn('Wait events fetch error:', (_error as Error).message);
             return null;
         }
     }
@@ -180,6 +183,7 @@ export class PerformanceSchemaAnalyzer extends BaseAnalyzer {
                 fullScans: row.rows_full_scanned as number,
             }));
         } catch (_error) {
+            console.warn('Table scans fetch error:', (_error as Error).message);
             return null;
         }
     }
@@ -211,6 +215,7 @@ export class PerformanceSchemaAnalyzer extends BaseAnalyzer {
 
             return stats;
         } catch (_error) {
+            console.warn('Connection stats fetch error:', (_error as Error).message);
             return null;
         }
     }

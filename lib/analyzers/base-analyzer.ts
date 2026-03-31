@@ -16,7 +16,7 @@ export class BaseAnalyzer {
      */
     constructor(connection: DatabaseConnection, config: TestConfig) {
         if (new.target === BaseAnalyzer) {
-            throw new Error('BaseAnalyzer は抽象クラスです。直接インスタンス化できません');
+            throw new Error('BaseAnalyzer is abstract and cannot be instantiated directly');
         }
         this.connection = connection;
         this.config = config;
