@@ -339,3 +339,44 @@ export interface PerformanceSchemaMetrics {
     tableScans: TableScanEntry[] | null;
     connections: Record<string, number> | null;
 }
+
+// ─── Query History ─────────────────────────────────────────────────────
+
+export interface QueryHistoryEntry {
+    testId: string;
+    testName: string;
+    timestamp: string;
+    statistics: StatisticsResult;
+    explainAccessType?: string;
+}
+
+export type QueryEventType =
+    | 'index_added'
+    | 'index_removed'
+    | 'schema_change'
+    | 'config_change'
+    | 'custom';
+
+export interface QueryEvent {
+    id: string;
+    queryFingerprint: string;
+    label: string;
+    type: QueryEventType;
+    timestamp: string;
+    createdAt: string;
+}
+
+export interface QueryFingerprintSummary {
+    queryFingerprint: string;
+    queryText: string;
+    latestTestName: string;
+    runCount: number;
+    latestRunAt: string;
+}
+
+export interface QueryTimeline {
+    queryFingerprint: string;
+    queryText: string;
+    entries: QueryHistoryEntry[];
+    events: QueryEvent[];
+}

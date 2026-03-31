@@ -31,6 +31,7 @@ import connectionsRouter from './routes/connections.js';
 import sqlLibraryRouter from './routes/sql-library.js';
 import testsRouter from './routes/tests.js';
 import reportsRouter from './routes/reports.js';
+import historyRouter from './routes/history.js';
 import { errorHandler } from './middleware/error-handler.js';
 
 /** Extended WebSocket with subscription management */
@@ -156,6 +157,7 @@ app.use('/api/sql', sqlLibraryRouter);
 // Apply rate limit to test execution endpoints
 app.use('/api/tests', testRateLimit, testsRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/history', historyRouter);
 
 // ─── Health check ────────────────────────────────────────────────────────
 app.get('/api/health', (_req: Request, res: Response) => {

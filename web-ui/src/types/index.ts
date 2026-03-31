@@ -338,3 +338,57 @@ export interface StatCardItem {
   unit: string;
   highlight?: boolean;
 }
+
+// ─── Query History ──────────────────────────────────────────────────────
+
+export type QueryEventType =
+  | 'index_added'
+  | 'index_removed'
+  | 'schema_change'
+  | 'config_change'
+  | 'custom';
+
+export interface QueryFingerprintSummary {
+  queryFingerprint: string;
+  queryText: string;
+  latestTestName: string;
+  runCount: number;
+  latestRunAt: string;
+}
+
+export interface QueryHistoryEntry {
+  testId: string;
+  testName: string;
+  timestamp: string;
+  statistics: Statistics;
+  explainAccessType?: string;
+}
+
+export interface QueryEvent {
+  id: string;
+  queryFingerprint: string;
+  label: string;
+  type: QueryEventType;
+  timestamp: string;
+  createdAt: string;
+}
+
+export interface QueryTimeline {
+  queryFingerprint: string;
+  queryText: string;
+  entries: QueryHistoryEntry[];
+  events: QueryEvent[];
+}
+
+export interface HistoryComparison {
+  before: Statistics;
+  after: Statistics;
+  delta: ComparisonDelta;
+}
+
+export interface CreateEventInput {
+  queryFingerprint: string;
+  label: string;
+  type: QueryEventType;
+  timestamp?: string;
+}

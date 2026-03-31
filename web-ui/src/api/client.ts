@@ -12,6 +12,11 @@ import type {
   SqlFilters,
   ReportSummary,
   ReportDetail,
+  QueryFingerprintSummary,
+  QueryTimeline,
+  HistoryComparison,
+  QueryEvent,
+  CreateEventInput,
 } from '../types';
 
 interface ApiResponse<T> {
@@ -83,4 +88,20 @@ export const reportsApi = {
   get: (id: string): Promise<ReportDetail> => get<ReportDetail>(`/reports/${id}`),
   exportUrl: (id: string, format: string): string =>
     `${BASE_URL}/reports/${encodeURIComponent(id)}/export?format=${encodeURIComponent(format)}`,
+};
+
+// ─── History ──────────────────────────────────────────────────────────────
+export const historyApi = {
+  fingerprints: (): Promise<QueryFingerprintSummary[]> =>
+    get<QueryFingerprintSummary[]>('/history/fingerprints'),
+  timeline: (fp: string): Promise<QueryTimeline> =>
+    get<QueryTimeline>(`/history/${encodeURIComponent(fp)}`),
+  compare: (fp: string, before: string, after: string): Promise<HistoryComparison> =>
+    get<HistoryComparison>(
+      `/history/${encodeURIComponent(fp)}/compare?before=${encodeURIComponent(before)}&after=${encodeURIComponent(after)}`
+    ),
+  createEvent: (data: CreateEventInput): Promise<QueryEvent> =>
+    post<QueryEvent>('/history/events', data),
+  deleteEvent: (id: string): Promise<void> =>
+    del<void>(`/history/events/${id}`),
 };

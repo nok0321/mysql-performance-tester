@@ -11,6 +11,7 @@ import Reports from './pages/Reports';
 import Analytics from './pages/Analytics';
 import ComparisonTest from './pages/ComparisonTest';
 import Settings from './pages/Settings';
+import QueryHistory from './pages/QueryHistory';
 
 type NavItem =
   | { section: string; path?: undefined; icon?: undefined; label?: undefined }
@@ -27,6 +28,7 @@ const NAV: NavItem[] = [
   { section: 'Insights' },
   { path: '/reports', icon: '📋', label: 'レポート' },
   { path: '/analytics', icon: '📈', label: 'アナリティクス' },
+  { path: '/history', icon: '🕐', label: 'クエリ履歴' },
   { section: 'System' },
   { path: '/settings', icon: '⚙️', label: '設定' },
 ];
@@ -66,6 +68,7 @@ const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
   '/comparison': { title: 'A/B 比較テスト', subtitle: '2つのクエリの性能を並べて比較' },
   '/reports': { title: 'レポート', subtitle: '過去のテスト結果を閲覧・エクスポート' },
   '/analytics': { title: 'アナリティクス', subtitle: 'トレンド分析と比較' },
+  '/history': { title: 'クエリ履歴', subtitle: '同一クエリの実行履歴と変更効果の可視化' },
   '/settings': { title: '設定', subtitle: 'デフォルト設定の管理' },
 };
 
@@ -115,6 +118,7 @@ export default function App() {
               <Route path="/comparison" element={<ComparisonTest wsMessages={wsMessages} subscribeTestId={subscribeTestId} />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/analytics" element={<Analytics />} />
+              <Route path="/history" element={<QueryHistory />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>
           </main>
