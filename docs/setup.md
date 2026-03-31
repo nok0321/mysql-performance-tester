@@ -14,7 +14,7 @@
 git clone https://github.com/nok0321/mysql-performance-tester.git
 cd mysql-performance-tester
 
-# コアライブラリの依存関係
+# コアライブラリ + CLI の依存関係
 npm install
 
 # Web API サーバーの依存関係
@@ -23,6 +23,8 @@ cd web && npm install && cd ..
 # Web フロントエンドの依存関係
 cd web-ui && npm install && cd ..
 ```
+
+> TypeScript ソースは `tsx` で直接実行されるため、ビルドステップは不要です。
 
 ---
 
@@ -35,6 +37,10 @@ cp .env.example .env
 `.env` を開いて接続情報を入力します。
 
 ```dotenv
+# セキュリティ（必須: Web UI でパスワードを暗号化保存するために必要）
+ENCRYPTION_KEY=your_random_secret_key_here   # 32文字以上
+
+# MySQL 接続設定
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=your_db_user
@@ -43,6 +49,7 @@ DB_NAME=perf_test
 ```
 
 > Web サーバーのポートを変更したい場合は `WEB_PORT=3001` も追加できます。
+> `ENCRYPTION_KEY` が未設定の場合、パスワードは平文で保存されます（警告が表示されます）。
 
 ---
 
@@ -99,9 +106,9 @@ npm start          # ./sql/ 内の SQL ファイルを順次実行
 
 ```bash
 cd web
-node server.js
+npm start              # tsx server.ts
 # または開発時（ファイル変更を自動検知）
-node --watch server.js
+npm run dev            # tsx watch server.ts
 ```
 
 起動確認:
@@ -171,3 +178,26 @@ Warning: EXPLAIN ANALYZE 未サポート
 
 MySQL 8.0.18 未満のバージョンでは EXPLAIN ANALYZE は使えません。
 `enableExplainAnalyze: false` に設定するか、MySQL をアップグレードしてください。
+
+---
+
+## テスト環境のセットアップ（開発者向け）
+
+Docker Compose で統合テスト用の MySQL を起動できます。
+
+```bash
+# テスト用 MySQL 起動（port 3307）
+npm run docker:test:up
+
+# .env.test を作成（初回のみ）
+cp .env.test.example .env.test
+
+# ユニットテスト
+npm run test:unit
+
+# 統合テスト（MySQL 接続が必要）
+npm run test:integration
+
+# テスト用 MySQL 停止
+npm run docker:test:down
+```
