@@ -130,7 +130,7 @@ router.get('/fingerprints', asyncHandler(async (_req: Request, res: Response) =>
 
 router.get('/:fingerprint', asyncHandler(async (req: Request, res: Response) => {
   const fp = req.params.fingerprint as string;
-  if (!fp || !/^[0-9a-f]{16}$/.test(fp)) {
+  if (!fp || !/^[0-9a-f]{16}(?:[0-9a-f]{16})?$/.test(fp)) {
     res.status(400).json({ success: false, error: '不正なフィンガープリントです' });
     return;
   }

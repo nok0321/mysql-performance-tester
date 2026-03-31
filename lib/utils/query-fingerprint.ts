@@ -9,7 +9,7 @@
 import { createHash } from 'crypto';
 
 export interface QueryFingerprint {
-  /** SHA-256 hex, first 16 characters */
+  /** SHA-256 hex, first 32 characters (128-bit) */
   hash: string;
   /** Whitespace-collapsed, lowercased, literals-replaced SQL */
   normalized: string;
@@ -44,9 +44,10 @@ function normalizeQuery(sql: string): string {
   // Replace double-quoted string literals with ?
   s = s.replace(/"(?:[^"\\]|\\.)*"/g, '?');
 
-  // Replace numeric literals (integers and decimals) with ?
+  // Replace numeric literals with ?
+  // Handles: integers, decimals, scientific notation (1e5, 3.14e-2), hex (0xFF)
   // Negative sign is not included — it is an operator, not part of the literal
-  s = s.replace(/\b\d+(?:\.\d+)?\b/g, '?');
+  s = s.replace(/\b(?:0[xX][0-9a-fA-F]+|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\b/g, '?');
 
   // Collapse whitespace
   s = s.replace(/\s+/g, ' ').trim();
@@ -64,10 +65,10 @@ function normalizeQuery(sql: string): string {
  * Produce a fingerprint for the given SQL text.
  *
  * @param sql - Raw SQL string (may include comments, varying whitespace, etc.)
- * @returns A fingerprint containing a 16-char hex hash and the normalized SQL
+ * @returns A fingerprint containing a 32-char hex hash (128-bit) and the normalized SQL
  */
 export function fingerprintQuery(sql: string): QueryFingerprint {
   const normalized = normalizeQuery(sql);
-  const hash = createHash('sha256').update(normalized).digest('hex').slice(0, 16);
+  const hash = createHash('sha256').update(normalized).digest('hex').slice(0, 32);
   return { hash, normalized };
 }
