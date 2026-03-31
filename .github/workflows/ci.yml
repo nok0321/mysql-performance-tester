@@ -39,3 +39,50 @@ jobs:
       - name: Build web-ui
         run: npm run build
         working-directory: web-ui
+
+  integration-test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: testpassword
+          MYSQL_DATABASE: perf_test
+          MYSQL_USER: testuser
+          MYSQL_PASSWORD: testpassword
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -ptestpassword"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+          --health-start-period=30s
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Initialize test database schema
+        run: mysql -h 127.0.0.1 -P 3307 -u root -ptestpassword perf_test < setup/01_ddl.sql
+
+      - name: Create .env.test
+        run: |
+          cat <<EOF > .env.test
+          DB_HOST=127.0.0.1
+          DB_PORT=3307
+          DB_USER=testuser
+          DB_PASSWORD=testpassword
+          DB_NAME=perf_test
+          EOF
+
+      - name: Run integration tests
+        run: npm run test:integration

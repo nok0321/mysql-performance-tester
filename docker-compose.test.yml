@@ -1,0 +1,23 @@
+services:
+  mysql-test:
+    image: mysql:8.0
+    container_name: mysql-perf-test
+    environment:
+      MYSQL_ROOT_PASSWORD: testpassword
+      MYSQL_DATABASE: perf_test
+      MYSQL_USER: testuser
+      MYSQL_PASSWORD: testpassword
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./setup/01_ddl.sql:/docker-entrypoint-initdb.d/01_ddl.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-ptestpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --performance_schema=ON
+      - --optimizer_trace_max_mem_size=1000000

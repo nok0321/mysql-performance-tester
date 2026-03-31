@@ -22,10 +22,15 @@
   "scripts": {
     "start": "tsx cli/index.ts run",
     "test": "tsx cli/index.ts demo",
-    "test:unit": "vitest run",
-    "test:unit:watch": "vitest",
+    "test:unit": "vitest run --project unit",
+    "test:unit:watch": "vitest --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:integration:watch": "vitest --project integration",
+    "test:all": "vitest run",
     "test:demo": "tsx cli/index.ts demo",
     "test:parallel": "tsx cli/index.ts parallel",
+    "docker:test:up": "docker compose -f docker-compose.test.yml up -d --wait",
+    "docker:test:down": "docker compose -f docker-compose.test.yml down -v",
     "help": "tsx cli/index.ts help",
     "typecheck": "tsc --noEmit"
   },
