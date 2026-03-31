@@ -1,12 +1,19 @@
 import { useState, useEffect } from 'react';
 import { connectionsApi } from '../api/client';
+import type { Connection, ConnectionFormData, ConnectionTestResult } from '../types';
 
-function ConnectionForm({ initial, onSave, onCancel }) {
-  const [form, setForm] = useState(initial || {
+interface ConnectionFormProps {
+  initial: Connection | null;
+  onSave: (form: ConnectionFormData) => void;
+  onCancel: () => void;
+}
+
+function ConnectionForm({ initial, onSave, onCancel }: ConnectionFormProps) {
+  const [form, setForm] = useState<ConnectionFormData>(initial || {
     name: '', host: 'localhost', port: 3306,
     database: '', user: 'root', password: '', poolSize: 10
   });
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const set = (k: keyof ConnectionFormData, v: string | number) => setForm(f => ({ ...f, [k]: v }));
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
@@ -66,11 +73,11 @@ function ConnectionForm({ initial, onSave, onCancel }) {
 }
 
 export default function Connections() {
-  const [connections, setConnections] = useState([]);
+  const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editTarget, setEditTarget] = useState(null);
-  const [testResults, setTestResults] = useState({});
+  const [editTarget, setEditTarget] = useState<Connection | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, ConnectionTestResult>>({});
   const [error, setError] = useState('');
 
   const load = async () => {
@@ -78,13 +85,13 @@ export default function Connections() {
       setLoading(true);
       const data = await connectionsApi.list();
       setConnections(data);
-    } catch (e) { setError(e.message); }
+    } catch (e) { setError((e as Error).message); }
     finally { setLoading(false); }
   };
 
   useEffect(() => { load(); }, []);
 
-  const handleSave = async (form) => {
+  const handleSave = async (form: ConnectionFormData) => {
     try {
       if (editTarget) {
         await connectionsApi.update(editTarget.id, form);
@@ -94,22 +101,22 @@ export default function Connections() {
       setShowForm(false);
       setEditTarget(null);
       load();
-    } catch (e) { setError(e.message); }
+    } catch (e) { setError((e as Error).message); }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     if (!confirm('この接続を削除しますか？')) return;
     try { await connectionsApi.remove(id); load(); }
-    catch (e) { setError(e.message); }
+    catch (e) { setError((e as Error).message); }
   };
 
-  const handleTest = async (id) => {
+  const handleTest = async (id: string) => {
     setTestResults(prev => ({ ...prev, [id]: { loading: true } }));
     try {
       const result = await connectionsApi.test(id);
       setTestResults(prev => ({ ...prev, [id]: { ok: true, ...result } }));
     } catch (e) {
-      setTestResults(prev => ({ ...prev, [id]: { ok: false, error: e.message } }));
+      setTestResults(prev => ({ ...prev, [id]: { ok: false, error: (e as Error).message } }));
     }
   };
 

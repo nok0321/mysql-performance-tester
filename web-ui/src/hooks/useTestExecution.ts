@@ -6,8 +6,9 @@
  * SingleTest and ParallelTest pages.
  */
 import { useReducer, useEffect, useState } from 'react';
+import type { RunState, RunAction, WsMessage } from '../types';
 
-const INIT_RUN = {
+const INIT_RUN: RunState = {
   runState: null,
   progress: { phase: '', current: 0, total: 0, duration: null },
   liveData: [],
@@ -16,7 +17,7 @@ const INIT_RUN = {
   errorMsg: '',
 };
 
-function runReducer(state, action) {
+function runReducer(state: RunState, action: RunAction): RunState {
   switch (action.type) {
     case 'start':
       return { ...INIT_RUN, runState: 'running', progress: action.progress };
@@ -40,21 +41,21 @@ function runReducer(state, action) {
   }
 }
 
-/**
- * @param {Array} wsMessages - WebSocket messages from useWebSocket
- * @returns {{ run, dispatch, currentTestId, setCurrentTestId }}
- */
-export default function useTestExecution(wsMessages) {
+export default function useTestExecution(wsMessages: WsMessage[]): {
+  run: RunState;
+  dispatch: React.Dispatch<RunAction>;
+  currentTestId: string | null;
+  setCurrentTestId: React.Dispatch<React.SetStateAction<string | null>>;
+} {
   const [run, dispatch] = useReducer(runReducer, INIT_RUN);
-  const [currentTestId, setCurrentTestId] = useState(null);
+  const [currentTestId, setCurrentTestId] = useState<string | null>(null);
 
-  // Filter WebSocket messages for the current test
   useEffect(() => {
     if (!currentTestId || !wsMessages.length) return;
     const relevant = wsMessages.filter(m => m.testId === currentTestId);
     if (!relevant.length) return;
     const last = relevant[relevant.length - 1];
-    if (['progress', 'complete', 'error'].includes(last.type)) dispatch(last);
+    if (['progress', 'complete', 'error'].includes(last.type)) dispatch(last as RunAction);
   }, [wsMessages, currentTestId]);
 
   return { run, dispatch, currentTestId, setCurrentTestId };

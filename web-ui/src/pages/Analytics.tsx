@@ -4,10 +4,18 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
+import type { ReportSummary, ReportDetail } from '../types';
+
+interface TrendDataPoint {
+  name: string;
+  p95: number;
+  p50: number;
+  p99: number;
+}
 
 export default function Analytics() {
-  const [reports, setReports] = useState([]);
-  const [details, setDetails] = useState([]);
+  const [reports, setReports] = useState<ReportSummary[]>([]);
+  const [details, setDetails] = useState<ReportDetail[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,30 +24,29 @@ export default function Analytics() {
         const list = await reportsApi.list();
         setReports(list);
 
-        // 最新 20 件の詳細を取得
         const recent = list.slice(0, 20);
         const dets = await Promise.all(
           recent.map(r => reportsApi.get(r.id).catch(() => null))
         );
-        setDetails(dets.filter(Boolean));
-      } catch {/* ignore */ }
+        setDetails(dets.filter((d): d is ReportDetail => d !== null));
+      } catch { /* ignore */ }
       finally { setLoading(false); }
     };
     fetchAll();
   }, []);
 
-  // P95 トレンドデータ構築
-  const trendData = details
+  // Build P95 trend data
+  const trendData: TrendDataPoint[] = details
     .filter(d => d.result?.statistics?.percentiles?.p95)
     .map((d, i) => ({
       name: d.testName || `Test ${i + 1}`,
-      p95: d.result.statistics.percentiles.p95,
-      p50: d.result.statistics.percentiles.p50,
-      p99: d.result.statistics.percentiles.p99,
+      p95: d.result!.statistics!.percentiles!.p95!,
+      p50: d.result!.statistics!.percentiles!.p50!,
+      p99: d.result!.statistics!.percentiles!.p99!,
     }))
     .slice(-15);
 
-  // テスト名別最高 P95
+  // Sort by highest P95
   const sorted = [...trendData].sort((a, b) => b.p95 - a.p95);
 
   const totalTests = reports.length;
@@ -64,7 +71,7 @@ export default function Analytics() {
         <p>過去のテスト結果からトレンドと改善ポイントを分析します</p>
       </div>
 
-      {/* サマリーカード */}
+      {/* Summary cards */}
       <div className="card-grid card-grid-4 mb-4">
         {[
           { label: '総テスト数', value: totalTests, unit: '件' },
@@ -81,7 +88,7 @@ export default function Analytics() {
 
       {trendData.length > 1 && (
         <>
-          {/* P95 トレンド */}
+          {/* P95 trend */}
           <div className="card mb-4">
             <div className="card-title mb-4">📉 P95 レイテンシ トレンド</div>
             <ResponsiveContainer width="100%" height={220}>
@@ -98,7 +105,7 @@ export default function Analytics() {
             </ResponsiveContainer>
           </div>
 
-          {/* テスト別 P95 比較 */}
+          {/* Per-test P95 comparison */}
           <div className="card">
             <div className="card-title mb-4">📊 テスト別 P95 比較（高い順）</div>
             <ResponsiveContainer width="100%" height={240}>

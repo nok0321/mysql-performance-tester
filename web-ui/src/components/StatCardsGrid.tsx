@@ -2,7 +2,14 @@
  * Reusable stat cards grid component
  * Used by SingleTest and ParallelTest for summary metrics display
  */
-export default function StatCardsGrid({ items, columns = 4 }) {
+import type { StatCardItem } from '../types';
+
+interface Props {
+  items: StatCardItem[];
+  columns?: number;
+}
+
+export default function StatCardsGrid({ items, columns = 4 }: Props) {
   return (
     <div className={`card-grid card-grid-${columns} mb-4 fade-in`}>
       {items.map(s => (

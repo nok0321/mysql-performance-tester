@@ -1,13 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { sqlApi } from '../api/client';
+import type { SqlItem, SqlFormData } from '../types';
 
-const CATEGORIES = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'JOIN', 'AGGREGATE', 'COMPLEX', 'OTHER'];
+const CATEGORIES = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'JOIN', 'AGGREGATE', 'COMPLEX', 'OTHER'] as const;
 
-function SqlForm({ initial, onSave, onCancel }) {
-  const [form, setForm] = useState(initial || {
+interface SqlFormProps {
+  initial: SqlItem | null;
+  onSave: (form: SqlFormData) => void;
+  onCancel: () => void;
+}
+
+function SqlForm({ initial, onSave, onCancel }: SqlFormProps) {
+  const [form, setForm] = useState<SqlFormData>(initial || {
     name: '', sql: '', category: 'SELECT', description: ''
   });
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const set = (k: keyof SqlFormData, v: string) => setForm(f => ({ ...f, [k]: v }));
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
@@ -53,7 +60,13 @@ function SqlForm({ initial, onSave, onCancel }) {
   );
 }
 
-function SqlCard({ item, onEdit, onDelete }) {
+interface SqlCardProps {
+  item: SqlItem;
+  onEdit: (item: SqlItem) => void;
+  onDelete: (id: string) => void;
+}
+
+function SqlCard({ item, onEdit, onDelete }: SqlCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -90,10 +103,10 @@ function SqlCard({ item, onEdit, onDelete }) {
 }
 
 export default function SqlLibrary() {
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState<SqlItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editTarget, setEditTarget] = useState(null);
+  const [editTarget, setEditTarget] = useState<SqlItem | null>(null);
   const [filterCat, setFilterCat] = useState('');
   const [keyword, setKeyword] = useState('');
   const [error, setError] = useState('');
@@ -103,26 +116,26 @@ export default function SqlLibrary() {
       setLoading(true);
       const data = await sqlApi.list({ category: filterCat || undefined, keyword: keyword || undefined });
       setItems(data);
-    } catch (e) { setError(e.message); }
+    } catch (e) { setError((e as Error).message); }
     finally { setLoading(false); }
   }, [filterCat, keyword]);
 
   useEffect(() => { load(); }, [load]);
 
-  const handleSave = async (form) => {
+  const handleSave = async (form: SqlFormData) => {
     try {
       if (editTarget) await sqlApi.update(editTarget.id, form);
       else await sqlApi.create(form);
       setShowForm(false);
       setEditTarget(null);
       load();
-    } catch (e) { setError(e.message); }
+    } catch (e) { setError((e as Error).message); }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     if (!confirm('この SQL を削除しますか？')) return;
     try { await sqlApi.remove(id); load(); }
-    catch (e) { setError(e.message); }
+    catch (e) { setError((e as Error).message); }
   };
 
   return (

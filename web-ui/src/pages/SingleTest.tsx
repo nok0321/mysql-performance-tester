@@ -8,9 +8,14 @@ import StatCardsGrid from '../components/StatCardsGrid';
 import ProgressBar from '../components/ProgressBar';
 import PercentilesTable from '../components/PercentilesTable';
 import useTestExecution from '../hooks/useTestExecution';
+import type {
+  Connection, SqlItem, SingleTestForm,
+  Distribution, ExplainAnalyze, QueryPlan,
+  WsMessage, RunAction,
+} from '../types';
 
-/** レイテンシ分布ヒストグラム */
-function HistogramChart({ distribution }) {
+/** Latency distribution histogram */
+function HistogramChart({ distribution }: { distribution: Distribution | undefined }) {
   if (!distribution?.buckets) return <div className="empty-state"><p>分布データなし</p></div>;
   const data = distribution.buckets.map(b => ({ name: `${b.min?.toFixed(0)}ms`, count: b.count }));
   return (
@@ -26,12 +31,12 @@ function HistogramChart({ distribution }) {
   );
 }
 
-/** EXPLAIN 結果表示 */
-function ExplainPanel({ explain }) {
+/** EXPLAIN result display */
+function ExplainPanel({ explain }: { explain: ExplainAnalyze | undefined }) {
   if (!explain) return <div className="empty-state"><p>EXPLAIN データなし（無効またはエラー）</p></div>;
   return (
     <div>
-      {explain.data && (
+      {explain.data != null && (
         <div className="code-block">{JSON.stringify(explain.data, null, 2)}</div>
       )}
       {explain.analyze?.tree && (
@@ -44,8 +49,8 @@ function ExplainPanel({ explain }) {
   );
 }
 
-/** 推奨事項 */
-function RecommendPanel({ plan }) {
+/** Recommendations */
+function RecommendPanel({ plan }: { plan: QueryPlan | undefined }) {
   if (!plan) return <div className="empty-state"><p>推奨データなし</p></div>;
   const issues = plan.issues || [];
   const recs = plan.recommendations || [];
@@ -74,11 +79,16 @@ function RecommendPanel({ plan }) {
   );
 }
 
-export default function SingleTest({ wsMessages, subscribeTestId }) {
-  const [connections, setConnections] = useState([]);
-  const [sqlItems, setSqlItems] = useState([]);
+interface Props {
+  wsMessages: WsMessage[];
+  subscribeTestId: (testId: string) => void;
+}
 
-  const [form, setForm] = useState({
+export default function SingleTest({ wsMessages, subscribeTestId }: Props) {
+  const [connections, setConnections] = useState<Connection[]>([]);
+  const [sqlItems, setSqlItems] = useState<SqlItem[]>([]);
+
+  const [form, setForm] = useState<SingleTestForm>({
     connectionId: '',
     sqlMode: 'library',
     sqlId: '',
@@ -94,14 +104,14 @@ export default function SingleTest({ wsMessages, subscribeTestId }) {
     enableBufferPoolMonitoring: true,
     enablePerformanceSchema: false,
   });
-  const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const setF = (k: string, v: string | number | boolean) => setForm(f => ({ ...f, [k]: v }));
 
   const { run, dispatch, setCurrentTestId } = useTestExecution(wsMessages);
   const [activeTab, setActiveTab] = useState('stats');
 
   useEffect(() => {
-    connectionsApi.list().then(setConnections).catch(() => { });
-    sqlApi.list().then(setSqlItems).catch(() => { });
+    connectionsApi.list().then(setConnections).catch(() => { /* ignore */ });
+    sqlApi.list().then(setSqlItems).catch(() => { /* ignore */ });
   }, []);
 
   const handleRun = async () => {
@@ -109,8 +119,8 @@ export default function SingleTest({ wsMessages, subscribeTestId }) {
       ? (sqlItems.find(s => s.id === form.sqlId)?.sql || '')
       : form.sqlText;
 
-    if (!form.connectionId) return dispatch({ type: 'error', data: { message: '接続先を選択してください' } });
-    if (!sqlText.trim()) return dispatch({ type: 'error', data: { message: 'SQL を入力または選択してください' } });
+    if (!form.connectionId) return dispatch({ type: 'error', data: { message: '接続先を選択してください' } } as RunAction);
+    if (!sqlText.trim()) return dispatch({ type: 'error', data: { message: 'SQL を入力または選択してください' } } as RunAction);
 
     dispatch({ type: 'start', progress: { phase: 'starting', current: 0, total: form.testIterations, duration: null } });
     setCurrentTestId(null);
@@ -120,7 +130,7 @@ export default function SingleTest({ wsMessages, subscribeTestId }) {
       setCurrentTestId(testId);
       subscribeTestId?.(testId);
     } catch (e) {
-      dispatch({ type: 'error', data: { message: e.message } });
+      dispatch({ type: 'error', data: { message: (e as Error).message } });
     }
   };
 
@@ -129,7 +139,7 @@ export default function SingleTest({ wsMessages, subscribeTestId }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 'var(--space-5)', alignItems: 'start' }}>
 
-      {/* ─── 設定パネル ─── */}
+      {/* Settings panel */}
       <div className="card">
         <div className="card-title mb-4">⚙ テスト設定</div>
 
@@ -149,7 +159,7 @@ export default function SingleTest({ wsMessages, subscribeTestId }) {
         <div className="form-group">
           <label className="form-label">SQL 入力方法</label>
           <div className="flex gap-2">
-            {['library', 'direct'].map(m => (
+            {(['library', 'direct'] as const).map(m => (
               <button key={m} className={`btn btn-sm ${form.sqlMode === m ? 'btn-accent' : 'btn-secondary'}`}
                 onClick={() => setF('sqlMode', m)}>
                 {m === 'library' ? '📚 ライブラリ' : '✏ 直接入力'}
@@ -182,18 +192,18 @@ export default function SingleTest({ wsMessages, subscribeTestId }) {
         </div>
 
         <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
-          {[
+          {([
             ['enableWarmup', 'ウォームアップ'],
             ['removeOutliers', '外れ値除外'],
             ['enableExplainAnalyze', 'EXPLAIN ANALYZE'],
             ['enableOptimizerTrace', 'Optimizer Trace'],
             ['enableBufferPoolMonitoring', 'Buffer Pool 監視'],
             ['enablePerformanceSchema', 'Performance Schema'],
-          ].map(([key, label]) => (
+          ] as const).map(([key, label]) => (
             <div key={key} className="toggle-row">
               <span className="toggle-label">{label}</span>
               <label className="toggle">
-                <input type="checkbox" checked={form[key]} onChange={e => setF(key, e.target.checked)} />
+                <input type="checkbox" checked={form[key] as boolean} onChange={e => setF(key, e.target.checked)} />
                 <span className="toggle-slider" />
               </label>
             </div>
@@ -219,9 +229,9 @@ export default function SingleTest({ wsMessages, subscribeTestId }) {
         {run.errorMsg && <div className="alert alert-error mt-4">⚠ {run.errorMsg}</div>}
       </div>
 
-      {/* ─── 結果パネル ─── */}
+      {/* Results panel */}
       <div>
-        {/* 進捗 */}
+        {/* Progress */}
         {run.runState === 'running' && (
           <ProgressBar
             current={run.progress.current}
@@ -236,7 +246,7 @@ export default function SingleTest({ wsMessages, subscribeTestId }) {
           </ProgressBar>
         )}
 
-        {/* サマリー統計カード */}
+        {/* Summary stat cards */}
         {stats && (
           <StatCardsGrid items={[
             { label: '平均', value: stats.basic?.mean, unit: 'ms' },
@@ -246,11 +256,11 @@ export default function SingleTest({ wsMessages, subscribeTestId }) {
           ]} />
         )}
 
-        {/* 詳細タブ */}
+        {/* Detail tabs */}
         {run.result && (
           <div className="card fade-in">
             <div className="tabs">
-              {[['stats', '📊 統計'], ['histogram', '📈 分布'], ['explain', '🔍 EXPLAIN'], ['recommend', '💡 推奨']].map(([id, label]) => (
+              {([['stats', '📊 統計'], ['histogram', '📈 分布'], ['explain', '🔍 EXPLAIN'], ['recommend', '💡 推奨']] as const).map(([id, label]) => (
                 <button key={id} className={`tab-btn${activeTab === id ? ' active' : ''}`}
                   onClick={() => setActiveTab(id)}>{label}</button>
               ))}
@@ -264,14 +274,14 @@ export default function SingleTest({ wsMessages, subscribeTestId }) {
                     <div className="table-wrap">
                       <table>
                         <tbody>
-                          {[
+                          {([
                             ['最小', stats?.basic?.min],
                             ['最大', stats?.basic?.max],
                             ['平均', stats?.basic?.mean],
                             ['中央値', stats?.basic?.median],
                             ['標準偏差', stats?.spread?.stdDev],
                             ['IQR', stats?.spread?.iqr],
-                          ].map(([l, v]) => (
+                          ] as [string, number | undefined][]).map(([l, v]) => (
                             <tr key={l}><td className="text-muted">{l}</td><td className="font-mono">{v ?? '-'} ms</td></tr>
                           ))}
                         </tbody>
@@ -283,11 +293,11 @@ export default function SingleTest({ wsMessages, subscribeTestId }) {
                     <div className="table-wrap">
                       <table>
                         <tbody>
-                          {[
+                          {([
                             ['合計', stats?.count?.total],
                             ['使用', stats?.count?.included],
                             ['外れ値', stats?.count?.outliers],
-                          ].map(([l, v]) => (
+                          ] as [string, number | undefined][]).map(([l, v]) => (
                             <tr key={l}><td className="text-muted">{l}</td><td className="font-mono">{v ?? '-'} 回</td></tr>
                           ))}
                         </tbody>

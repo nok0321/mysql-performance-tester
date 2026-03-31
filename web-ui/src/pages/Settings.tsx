@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import type { SettingsForm } from '../types';
 
-const DEFAULTS = {
+const DEFAULTS: SettingsForm = {
   testIterations: 20,
   warmupPercentage: 20,
   outlierMethod: 'iqr',
@@ -15,12 +16,12 @@ const DEFAULTS = {
 };
 
 export default function Settings() {
-  const [form, setForm] = useState(() => {
+  const [form, setForm] = useState<SettingsForm>(() => {
     try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('perftest-settings') || '{}') }; }
     catch { return DEFAULTS; }
   });
   const [saved, setSaved] = useState(false);
-  const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const setF = (k: string, v: string | number | boolean) => setForm(f => ({ ...f, [k]: v }));
 
   const handleSave = () => {
     localStorage.setItem('perftest-settings', JSON.stringify(form));
@@ -62,18 +63,18 @@ export default function Settings() {
           </select>
         </div>
 
-        {[
+        {([
           ['enableWarmup', 'ウォームアップを有効にする'],
           ['removeOutliers', '外れ値を自動除外する'],
           ['enableExplainAnalyze', 'EXPLAIN ANALYZE を有効にする（MySQL 8.0.18+）'],
           ['enableOptimizerTrace', 'Optimizer Trace を有効にする（低速注意）'],
           ['enableBufferPoolMonitoring', 'Buffer Pool 監視を有効にする'],
           ['enablePerformanceSchema', 'Performance Schema を有効にする'],
-        ].map(([key, label]) => (
+        ] as const).map(([key, label]) => (
           <div key={key} className="toggle-row">
             <span className="toggle-label">{label}</span>
             <label className="toggle">
-              <input type="checkbox" checked={form[key]} onChange={e => setF(key, e.target.checked)} />
+              <input type="checkbox" checked={form[key] as boolean} onChange={e => setF(key, e.target.checked)} />
               <span className="toggle-slider" />
             </label>
           </div>
