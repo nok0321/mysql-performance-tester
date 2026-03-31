@@ -88,7 +88,7 @@ function assertSingleStatement(query: string): void {
   // If there's a semicolon before the trailing one, it's multiple statements
   const withoutTrailingSemicolon = stripped.trimEnd().replace(/;$/, '');
   if (withoutTrailingSemicolon.includes(';')) {
-    throw new Error('EXPLAIN には単一ステートメントのみ指定できます');
+    throw new Error('EXPLAIN requires a single statement');
   }
 }
 

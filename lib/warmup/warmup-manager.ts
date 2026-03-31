@@ -92,7 +92,7 @@ export class WarmupManager {
                 const errorMessage = error instanceof Error ? error.message : String(error);
 
                 if (!silent) {
-                    console.warn(`   ⚠️ ウォームアップ ${i + 1}回目エラー (無視): ${errorMessage}`);
+                    console.warn(`   ⚠️ Warmup iteration ${i + 1} error (ignored): ${errorMessage}`);
                 }
 
                 results.push({

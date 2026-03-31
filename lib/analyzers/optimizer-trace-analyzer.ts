@@ -52,7 +52,7 @@ export class OptimizerTraceAnalyzer extends BaseAnalyzer {
 
             return null;
         } catch (error) {
-            console.warn(`Optimizer Trace取得エラー: ${(error as Error).message}`);
+            console.warn(`Optimizer Trace capture error: ${(error as Error).message}`);
             return null;
         } finally {
             if (traceConnection) {

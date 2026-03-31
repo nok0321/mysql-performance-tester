@@ -6,7 +6,7 @@
 export class BaseExporter {
     constructor() {
         if (new.target === BaseExporter) {
-            throw new Error('BaseExporter は抽象クラスです。直接インスタンス化できません');
+            throw new Error('BaseExporter is abstract and cannot be instantiated directly');
         }
     }
 
@@ -17,6 +17,6 @@ export class BaseExporter {
      * @returns Absolute path of the exported file
      */
     async export(_reportData: Record<string, unknown>, _outputDir: string): Promise<string> {
-        throw new Error(`${this.constructor.name} は export() を実装する必要があります`);
+        throw new Error(`${this.constructor.name} must implement export()`);
     }
 }

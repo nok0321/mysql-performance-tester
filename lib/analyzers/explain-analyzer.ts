@@ -27,7 +27,7 @@ export class ExplainAnalyzer extends BaseAnalyzer {
                 timestamp: new Date().toISOString()
             };
         } catch (error) {
-            console.warn(`EXPLAIN実行エラー: ${(error as Error).message}`);
+            console.warn(`EXPLAIN execution error: ${(error as Error).message}`);
             return null;
         }
     }
@@ -62,7 +62,7 @@ export class ExplainAnalyzer extends BaseAnalyzer {
                 timestamp: new Date().toISOString()
             };
         } catch (error) {
-            console.warn(`EXPLAIN ANALYZE実行エラー: ${(error as Error).message}`);
+            console.warn(`EXPLAIN ANALYZE execution error: ${(error as Error).message}`);
             return null;
         }
     }

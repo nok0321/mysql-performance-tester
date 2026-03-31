@@ -54,7 +54,7 @@ export class BufferPoolMonitor extends BaseAnalyzer {
                 timestamp: new Date().toISOString()
             };
         } catch (error) {
-            console.warn(`Buffer Pool分析エラー: ${(error as Error).message}`);
+            console.warn(`Buffer Pool analysis error: ${(error as Error).message}`);
             return null;
         }
     }

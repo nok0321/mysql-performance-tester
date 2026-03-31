@@ -120,7 +120,7 @@ export class MySQLPerformanceTester extends EventEmitter {
 
         const connected = await this.db.testConnection();
         if (!connected) {
-            throw new Error('データベース接続に失敗しました');
+            throw new Error('Database connection failed');
         }
 
         console.log('✓ データベース接続成功');

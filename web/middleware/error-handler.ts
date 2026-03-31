@@ -23,7 +23,7 @@ export function errorHandler(
     if (err.status) {
         res.status(err.status).json({
             success: false,
-            error: err.message || 'リクエストが不正です',
+            error: err.message || 'Bad request',
         });
         return;
     }
@@ -41,6 +41,6 @@ export function errorHandler(
     console.error(`[API Error] ${req.method} ${req.originalUrl}:`, err.message || err);
     res.status(500).json({
         success: false,
-        error: 'サーバーエラーが発生しました',
+        error: 'Internal server error',
     });
 }

@@ -85,9 +85,9 @@ export class ResultStorage {
     async initialize(): Promise<void> {
         try {
             await fs.mkdir(this.config.resultDirectory, { recursive: true });
-            console.log(`📁 結果保存ディレクトリ: ${this.config.resultDirectory}`);
+            console.log(`📁 Result directory: ${this.config.resultDirectory}`);
         } catch (error) {
-            console.warn(`⚠️ 結果ディレクトリ作成エラー: ${(error as Error).message}`);
+            console.warn(`⚠️ Result directory creation error: ${(error as Error).message}`);
         }
     }
 
@@ -118,10 +118,10 @@ export class ResultStorage {
                 await this.saveAsCsv(filePath, results);
             }
 
-            console.log(`💾 結果を保存しました: ${filePath}`);
+            console.log(`💾 Result saved: ${filePath}`);
             return filePath;
         } catch (error) {
-            console.error(`結果の保存に失敗: ${(error as Error).message}`);
+            console.error(`Failed to save result: ${(error as Error).message}`);
             return null;
         }
     }
@@ -218,7 +218,7 @@ export class ResultStorage {
 
             return null;
         } catch (error) {
-            console.error(`結果の読み込みに失敗: ${(error as Error).message}`);
+            console.error(`Failed to load result: ${(error as Error).message}`);
             return null;
         }
     }
@@ -299,7 +299,7 @@ export class ResultStorage {
 
             return fileInfos;
         } catch (error) {
-            console.error(`ファイル一覧の取得に失敗: ${(error as Error).message}`);
+            console.error(`Failed to list files: ${(error as Error).message}`);
             return [];
         }
     }
@@ -328,12 +328,12 @@ export class ResultStorage {
             }
 
             if (deletedCount > 0) {
-                console.log(`🗑️ ${deletedCount}個の古い結果ファイルを削除しました`);
+                console.log(`🗑️ ${deletedCount} old result file(s) deleted`);
             }
 
             return deletedCount;
         } catch (error) {
-            console.warn(`⚠️ クリーンアップエラー: ${(error as Error).message}`);
+            console.warn(`⚠️ Cleanup error: ${(error as Error).message}`);
             return 0;
         }
     }
@@ -350,10 +350,10 @@ export class ResultStorage {
                 : path.join(this.config.resultDirectory, fileName);
 
             await fs.unlink(filePath);
-            console.log(`🗑️ ファイルを削除しました: ${fileName}`);
+            console.log(`🗑️ File deleted: ${fileName}`);
             return true;
         } catch (error) {
-            console.error(`ファイルの削除に失敗: ${(error as Error).message}`);
+            console.error(`Failed to delete file: ${(error as Error).message}`);
             return false;
         }
     }
@@ -376,13 +376,13 @@ export class ResultStorage {
             }
 
             if (allResults.length === 0) {
-                console.warn('マージする結果がありません');
+                console.warn('No results to merge');
                 return null;
             }
 
             return await this.save(allResults, outputName);
         } catch (error) {
-            console.error(`結果のマージに失敗: ${(error as Error).message}`);
+            console.error(`Failed to merge results: ${(error as Error).message}`);
             return null;
         }
     }
@@ -427,7 +427,7 @@ export class ResultStorage {
                 newestFile: files.length > 0 ? files[0] : null
             };
         } catch (error) {
-            console.error(`統計の取得に失敗: ${(error as Error).message}`);
+            console.error(`Failed to get statistics: ${(error as Error).message}`);
             return null;
         }
     }

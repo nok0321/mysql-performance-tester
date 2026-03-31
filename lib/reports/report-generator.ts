@@ -105,7 +105,7 @@ export class ReportGenerator {
                 exportedFiles[exporter.constructor.name] = filePath;
                 console.log(`✓ ${exporter.constructor.name}: ${filePath}`);
             } catch (error) {
-                console.error(`✗ ${exporter.constructor.name} エラー: ${(error as Error).message}`);
+                console.error(`✗ ${exporter.constructor.name} error: ${(error as Error).message}`);
             }
         }
 
