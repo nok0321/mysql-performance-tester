@@ -9,6 +9,7 @@ import SingleTest from './pages/SingleTest';
 import ParallelTest from './pages/ParallelTest';
 import Reports from './pages/Reports';
 import Analytics from './pages/Analytics';
+import ComparisonTest from './pages/ComparisonTest';
 import Settings from './pages/Settings';
 
 type NavItem =
@@ -22,6 +23,7 @@ const NAV: NavItem[] = [
   { section: 'Execute' },
   { path: '/single-test', icon: '▶', label: '単一テスト' },
   { path: '/parallel-test', icon: '⚡', label: '並列テスト' },
+  { path: '/comparison', icon: 'AB', label: 'A/B 比較' },
   { section: 'Insights' },
   { path: '/reports', icon: '📋', label: 'レポート' },
   { path: '/analytics', icon: '📈', label: 'アナリティクス' },
@@ -61,6 +63,7 @@ const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
   '/sql-library': { title: 'SQL ライブラリ', subtitle: 'テスト用 SQL の登録・管理' },
   '/single-test': { title: '単一テスト', subtitle: 'ウォームアップ付きクエリ性能測定' },
   '/parallel-test': { title: '並列テスト', subtitle: '負荷シミュレーション & QPS 計測' },
+  '/comparison': { title: 'A/B 比較テスト', subtitle: '2つのクエリの性能を並べて比較' },
   '/reports': { title: 'レポート', subtitle: '過去のテスト結果を閲覧・エクスポート' },
   '/analytics': { title: 'アナリティクス', subtitle: 'トレンド分析と比較' },
   '/settings': { title: '設定', subtitle: 'デフォルト設定の管理' },
@@ -109,6 +112,7 @@ export default function App() {
               <Route path="/sql-library" element={<SqlLibrary />} />
               <Route path="/single-test" element={<SingleTest wsMessages={wsMessages} subscribeTestId={subscribeTestId} />} />
               <Route path="/parallel-test" element={<ParallelTest wsMessages={wsMessages} subscribeTestId={subscribeTestId} />} />
+              <Route path="/comparison" element={<ComparisonTest wsMessages={wsMessages} subscribeTestId={subscribeTestId} />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/settings" element={<Settings />} />

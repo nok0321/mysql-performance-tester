@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { reportsApi } from '../api/client';
+import DeltaSummaryBar from '../components/DeltaSummaryBar';
+import ComparisonPercentilesTable from '../components/ComparisonPercentilesTable';
 import type {
   ReportSummary, ReportDetail, SingleTestResult,
-  ParallelResults, FileStats,
+  ParallelResults, FileStats, ComparisonDelta, Statistics,
 } from '../types';
 
 export default function Reports() {
@@ -39,6 +41,7 @@ export default function Reports() {
   };
 
   const typeBadge = (type: string) => {
+    if (type === 'comparison') return <span className="badge badge-yellow">A/B</span>;
     if (type === 'parallel') return <span className="badge badge-blue">並列</span>;
     if (type === 'batch') return <span className="badge badge-yellow">バッチ</span>;
     return <span className="badge badge-green">単一</span>;
@@ -91,7 +94,89 @@ export default function Reports() {
 
         {detailLoading && <div className="empty-state"><div className="spinner spinner-lg" /></div>}
 
-        {detail && !detailLoading && (() => {
+        {/* Comparison result detail */}
+        {detail && !detailLoading && (detail as unknown as Record<string, unknown>).type === 'comparison' && (() => {
+          const d = detail as unknown as Record<string, unknown>;
+          const resultA = d.resultA as SingleTestResult | undefined;
+          const resultB = d.resultB as SingleTestResult | undefined;
+          const delta = d.delta as ComparisonDelta | null;
+          const testNameA = (d.testNameA as string) || 'Query A';
+          const testNameB = (d.testNameB as string) || 'Query B';
+          const executionMode = (d.executionMode as string) || 'sequential';
+          const statsA = resultA?.statistics;
+          const statsB = resultB?.statistics;
+
+          return (
+            <div className="fade-in">
+              <div className="card-header mb-4">
+                <div>
+                  <div className="card-title">{selected!.testName || selected!.id}</div>
+                  <div className="text-xs text-muted">
+                    {selected!.id} | {executionMode === 'sequential' ? 'Sequential' : 'Parallel'}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  {(['json', 'csv', 'html', 'markdown'] as const).map(fmt => (
+                    <button key={fmt} className="btn btn-secondary btn-sm" onClick={() => handleExport(fmt)}>
+                      {fmt.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {delta && <DeltaSummaryBar delta={delta} nameA={testNameA} nameB={testNameB} />}
+
+              {/* Side-by-side stat cards */}
+              <div className="card-grid card-grid-2 mb-4">
+                <div>
+                  <div className="section-title">{testNameA}</div>
+                  <div className="card-grid card-grid-4">
+                    {[
+                      { label: 'Mean', value: statsA?.basic?.mean, unit: 'ms' },
+                      { label: 'P95', value: statsA?.percentiles?.p95, unit: 'ms' },
+                      { label: 'P99', value: statsA?.percentiles?.p99, unit: 'ms' },
+                      { label: 'CV', value: statsA?.spread?.cv, unit: '%' },
+                    ].map(s => (
+                      <div key={s.label} className="stat-card">
+                        <div className="stat-label">{s.label}</div>
+                        <div className="stat-value">{s.value ?? '-'}<span className="stat-unit">{s.unit}</span></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div className="section-title">{testNameB}</div>
+                  <div className="card-grid card-grid-4">
+                    {[
+                      { label: 'Mean', value: statsB?.basic?.mean, unit: 'ms' },
+                      { label: 'P95', value: statsB?.percentiles?.p95, unit: 'ms' },
+                      { label: 'P99', value: statsB?.percentiles?.p99, unit: 'ms' },
+                      { label: 'CV', value: statsB?.spread?.cv, unit: '%' },
+                    ].map(s => (
+                      <div key={s.label} className="stat-card">
+                        <div className="stat-label">{s.label}</div>
+                        <div className="stat-value">{s.value ?? '-'}<span className="stat-unit">{s.unit}</span></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="section-title">Percentile Comparison</div>
+                <ComparisonPercentilesTable
+                  percentilesA={statsA?.percentiles}
+                  percentilesB={statsB?.percentiles}
+                  nameA={testNameA}
+                  nameB={testNameB}
+                />
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Standard result detail */}
+        {detail && !detailLoading && (detail as unknown as Record<string, unknown>).type !== 'comparison' && (() => {
           const result: SingleTestResult | undefined = detail.result || (Array.isArray(detail.results) ? detail.results[0] as SingleTestResult : undefined);
           const stats = result?.statistics;
           return (

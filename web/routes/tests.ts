@@ -27,6 +27,7 @@ import { ParallelPerformanceTester } from '../../lib/testers/parallel-tester.js'
 import { createDbConfig } from '../../lib/config/database-configuration.js';
 import { createTestConfig } from '../../lib/config/test-configuration.js';
 import { validateQuery } from '../../lib/utils/validator.js';
+import { computeComparisonDelta } from '../../lib/utils/comparison-delta.js';
 import { validateId } from '../security/validate-id.js';
 import { asyncHandler } from '../middleware/async-handler.js';
 import type { DbConfig, TestConfig } from '../../lib/types/index.js';
@@ -92,6 +93,15 @@ interface SingleTestBody {
 /** Request body for parallel test */
 interface ParallelTestBody extends SingleTestBody {
   sqlIds?: string[];
+}
+
+/** Request body for comparison test */
+interface ComparisonTestBody extends SingleTestBody {
+  sqlTextA: string;
+  sqlTextB: string;
+  testNameA?: string;
+  testNameB?: string;
+  executionMode?: 'sequential' | 'parallel';
 }
 
 /** Error with an optional HTTP status code */
@@ -405,6 +415,142 @@ router.post('/parallel', async (req: Request, res: Response) => {
       if (tmpDirCreated && usedDir) {
         await fs.rm(usedDir, { recursive: true, force: true }).catch(() => { });
       }
+      releaseSemaphore();
+    }
+  });
+});
+
+// ─── Comparison test ────────────────────────────────────────────────────
+router.post('/comparison', async (req: Request, res: Response) => {
+  if (!acquireSemaphore()) {
+    res.status(429).json({
+      success: false,
+      error: `同時実行可能なテスト数の上限（${MAX_CONCURRENT_TESTS}）に達しています。しばらく待ってから再試行してください。`
+    });
+    return;
+  }
+
+  const {
+    sqlTextA, sqlTextB,
+    testNameA = 'Query A', testNameB = 'Query B',
+    executionMode = 'sequential',
+  } = req.body as ComparisonTestBody;
+
+  // Validate both queries
+  if (!sqlTextA?.trim() || !sqlTextB?.trim()) {
+    releaseSemaphore();
+    res.status(400).json({ success: false, error: 'Query A と Query B の両方を入力してください' });
+    return;
+  }
+
+  try {
+    validateQuery(sqlTextA.trim());
+    validateQuery(sqlTextB.trim());
+  } catch (validationErr) {
+    releaseSemaphore();
+    res.status(400).json({ success: false, error: `SQLバリデーションエラー: ${(validationErr as Error).message}` });
+    return;
+  }
+
+  let dbConfig: DbConfig;
+  let testConfig: TestConfig;
+  try {
+    ({ dbConfig, testConfig } = await buildConfigs(req.body as SingleTestBody));
+  } catch (configErr) {
+    releaseSemaphore();
+    if ((configErr as HttpError).status === 400) {
+      res.status(400).json({ success: false, error: (configErr as Error).message });
+      return;
+    }
+    if ((configErr as Error).message === '指定された接続が見つかりません') {
+      res.status(404).json({ success: false, error: (configErr as Error).message });
+      return;
+    }
+    res.status(500).json({ success: false, error: 'サーバーエラーが発生しました' });
+    return;
+  }
+
+  const testId = `comparison_${randomUUID()}`;
+  const wss = req.app.get('wss') as ExtendedWebSocketServer | undefined;
+
+  res.status(202).json({ success: true, data: { testId } });
+
+  setImmediate(async () => {
+    let testerA: MySQLPerformanceTester | null = null;
+    let testerB: MySQLPerformanceTester | null = null;
+    try {
+      if (executionMode === 'parallel') {
+        // Parallel: two independent tester instances running concurrently
+        testerA = new MySQLPerformanceTester(dbConfig, testConfig);
+        testerB = new MySQLPerformanceTester(dbConfig, testConfig);
+        testerA.on('progress', (data: Record<string, unknown>) =>
+          broadcast(wss, testId, 'progress', { ...data, phase: `queryA:${data.phase || ''}` }));
+        testerB.on('progress', (data: Record<string, unknown>) =>
+          broadcast(wss, testId, 'progress', { ...data, phase: `queryB:${data.phase || ''}` }));
+
+        await Promise.all([testerA.initialize(), testerB.initialize()]);
+        const [resultA, resultB] = await Promise.all([
+          testerA.executeTestWithWarmup(testNameA, sqlTextA.trim()),
+          testerB.executeTestWithWarmup(testNameB, sqlTextB.trim()),
+        ]);
+
+        const delta = (resultA.statistics && resultB.statistics)
+          ? computeComparisonDelta(resultA.statistics, resultB.statistics)
+          : null;
+
+        await fs.mkdir(RESULTS_DIR, { recursive: true });
+        const resultPath = path.join(RESULTS_DIR, `${testId}.json`);
+        await fs.writeFile(resultPath, JSON.stringify({
+          type: 'comparison', testId, executionMode,
+          testNameA, testNameB,
+          resultA, resultB, delta,
+        }, null, 2));
+
+        broadcast(wss, testId, 'complete', {
+          testId, executionMode, testNameA, testNameB,
+          resultA: serializeResult(resultA),
+          resultB: serializeResult(resultB),
+          delta,
+        });
+      } else {
+        // Sequential: single tester instance, A then B
+        testerA = new MySQLPerformanceTester(dbConfig, testConfig);
+        testerA.on('progress', (data: Record<string, unknown>) =>
+          broadcast(wss, testId, 'progress', { ...data, phase: `queryA:${data.phase || ''}` }));
+        await testerA.initialize();
+        const resultA = await testerA.executeTestWithWarmup(testNameA, sqlTextA.trim());
+
+        // Switch progress prefix for query B
+        testerA.removeAllListeners('progress');
+        testerA.on('progress', (data: Record<string, unknown>) =>
+          broadcast(wss, testId, 'progress', { ...data, phase: `queryB:${data.phase || ''}` }));
+        const resultB = await testerA.executeTestWithWarmup(testNameB, sqlTextB.trim());
+
+        const delta = (resultA.statistics && resultB.statistics)
+          ? computeComparisonDelta(resultA.statistics, resultB.statistics)
+          : null;
+
+        await fs.mkdir(RESULTS_DIR, { recursive: true });
+        const resultPath = path.join(RESULTS_DIR, `${testId}.json`);
+        await fs.writeFile(resultPath, JSON.stringify({
+          type: 'comparison', testId, executionMode,
+          testNameA, testNameB,
+          resultA, resultB, delta,
+        }, null, 2));
+
+        broadcast(wss, testId, 'complete', {
+          testId, executionMode, testNameA, testNameB,
+          resultA: serializeResult(resultA),
+          resultB: serializeResult(resultB),
+          delta,
+        });
+      }
+    } catch (err) {
+      console.error(`[test:${testId}] Error:`, (err as Error).message);
+      broadcast(wss, testId, 'error', { message: (err as Error).message });
+    } finally {
+      if (testerA) await testerA.cleanup().catch(() => { });
+      if (testerB) await testerB.cleanup().catch(() => { });
       releaseSemaphore();
     }
   });

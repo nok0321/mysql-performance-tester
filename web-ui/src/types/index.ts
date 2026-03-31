@@ -199,13 +199,14 @@ export interface RunState {
   liveData: LiveDataPoint[];
   result: SingleTestResult | null;
   results: ParallelResults | null;
+  comparison: ComparisonResult | null;
   errorMsg: string;
 }
 
 export type RunAction =
   | { type: 'start'; progress: TestProgress }
   | { type: 'progress'; data: TestProgress }
-  | { type: 'complete'; data: { result?: SingleTestResult; results?: ParallelResults } }
+  | { type: 'complete'; data: { result?: SingleTestResult; results?: ParallelResults; comparison?: ComparisonResult } }
   | { type: 'error'; data: { message: string } };
 
 // ─── WebSocket ────────────────────────────────────────────────────────────
@@ -277,6 +278,55 @@ export interface SettingsForm {
   enablePerformanceSchema: boolean;
   debugOutputEnabled: boolean;
   autoSaveResults: boolean;
+  [key: string]: string | number | boolean;
+}
+
+// ─── Comparison Test ─────────────────────────────────────────────────────
+
+export interface ComparisonDelta {
+  meanDiff: number;
+  meanDiffPercent: number;
+  medianDiff: number;
+  medianDiffPercent: number;
+  p50Diff: number;
+  p50DiffPercent: number;
+  p95Diff: number;
+  p95DiffPercent: number;
+  p99Diff: number;
+  p99DiffPercent: number;
+  winner: 'A' | 'B' | 'tie';
+  summary: string;
+}
+
+export interface ComparisonResult {
+  resultA: SingleTestResult;
+  resultB: SingleTestResult;
+  delta: ComparisonDelta | null;
+  executionMode: 'sequential' | 'parallel';
+  testNameA: string;
+  testNameB: string;
+}
+
+export interface ComparisonTestForm {
+  connectionId: string;
+  executionMode: 'sequential' | 'parallel';
+  sqlModeA: 'library' | 'direct';
+  sqlIdA: string;
+  sqlTextA: string;
+  testNameA: string;
+  sqlModeB: 'library' | 'direct';
+  sqlIdB: string;
+  sqlTextB: string;
+  testNameB: string;
+  testIterations: number;
+  enableWarmup: boolean;
+  warmupPercentage: number;
+  removeOutliers: boolean;
+  outlierMethod: string;
+  enableExplainAnalyze: boolean;
+  enableOptimizerTrace: boolean;
+  enableBufferPoolMonitoring: boolean;
+  enablePerformanceSchema: boolean;
   [key: string]: string | number | boolean;
 }
 
