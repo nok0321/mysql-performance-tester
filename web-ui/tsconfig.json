@@ -12,7 +12,10 @@
     "esModuleInterop": true,
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@shared/types": ["../lib/types/index.ts"]
+    }
   },
-  "include": ["src"]
+  "include": ["src", "../lib/types"]
 }
