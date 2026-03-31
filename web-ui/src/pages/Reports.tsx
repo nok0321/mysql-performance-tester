@@ -1,21 +1,25 @@
 import { useState, useEffect } from 'react';
 import { reportsApi } from '../api/client';
+import type {
+  ReportSummary, ReportDetail, SingleTestResult,
+  ParallelResults, FileStats,
+} from '../types';
 
 export default function Reports() {
-  const [reports, setReports] = useState([]);
+  const [reports, setReports] = useState<ReportSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState(null);
-  const [detail, setDetail] = useState(null);
+  const [selected, setSelected] = useState<ReportSummary | null>(null);
+  const [detail, setDetail] = useState<ReportDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     reportsApi.list()
       .then(data => { setReports(data); setLoading(false); })
-      .catch(e => { setError(e.message); setLoading(false); });
+      .catch(e => { setError((e as Error).message); setLoading(false); });
   }, []);
 
-  const handleSelect = async (report) => {
+  const handleSelect = async (report: ReportSummary) => {
     setSelected(report);
     setDetail(null);
     setDetailLoading(true);
@@ -23,17 +27,18 @@ export default function Reports() {
       const data = await reportsApi.get(report.id);
       setDetail(data);
     } catch (e) {
-      setError(e.message);
+      setError((e as Error).message);
     } finally {
       setDetailLoading(false);
     }
   };
 
-  const handleExport = (format) => {
+  const handleExport = (format: string) => {
+    if (!selected) return;
     window.open(reportsApi.exportUrl(selected.id, format), '_blank');
   };
 
-  const typeBadge = (type) => {
+  const typeBadge = (type: string) => {
     if (type === 'parallel') return <span className="badge badge-blue">並列</span>;
     if (type === 'batch') return <span className="badge badge-yellow">バッチ</span>;
     return <span className="badge badge-green">単一</span>;
@@ -42,7 +47,7 @@ export default function Reports() {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 'var(--space-5)', alignItems: 'start' }}>
 
-      {/* レポート一覧 */}
+      {/* Report list */}
       <div>
         <div className="section-title">📋 レポート一覧</div>
         {error && <div className="alert alert-error">{error}</div>}
@@ -75,7 +80,7 @@ export default function Reports() {
         )}
       </div>
 
-      {/* 詳細 */}
+      {/* Detail */}
       <div>
         {!selected && (
           <div className="empty-state">
@@ -87,17 +92,17 @@ export default function Reports() {
         {detailLoading && <div className="empty-state"><div className="spinner spinner-lg" /></div>}
 
         {detail && !detailLoading && (() => {
-          const result = detail.result || detail.results?.[0];
+          const result: SingleTestResult | undefined = detail.result || (Array.isArray(detail.results) ? detail.results[0] as SingleTestResult : undefined);
           const stats = result?.statistics;
           return (
             <div className="fade-in">
               <div className="card-header mb-4">
                 <div>
-                  <div className="card-title">{detail.testName || selected.id}</div>
-                  <div className="text-xs text-muted">{selected.id}</div>
+                  <div className="card-title">{detail.testName || selected!.id}</div>
+                  <div className="text-xs text-muted">{selected!.id}</div>
                 </div>
                 <div className="flex gap-2">
-                  {['json', 'csv', 'html', 'markdown'].map(fmt => (
+                  {(['json', 'csv', 'html', 'markdown'] as const).map(fmt => (
                     <button key={fmt} className="btn btn-secondary btn-sm" onClick={() => handleExport(fmt)}>
                       ⬇ {fmt.toUpperCase()}
                     </button>
@@ -137,21 +142,21 @@ export default function Reports() {
                 </>
               )}
 
-              {/* 並列テスト結果 */}
+              {/* Parallel test results */}
               {detail.results && !Array.isArray(detail.results) && (
                 <div className="mt-4">
                   <div className="section-title mb-4">⚡ 並列テスト結果</div>
-                  {Object.entries(detail.results).map(([strategy, data]) => {
+                  {Object.entries(detail.results as ParallelResults).map(([strategy, data]) => {
                     const m = data?.metrics;
                     if (!m) return null;
                     const perFile = m.perFile || {};
                     const fileEntries = Object.entries(perFile);
                     return (
                       <div key={strategy} className="card mb-4 fade-in">
-                        {/* 戦略サマリー */}
+                        {/* Strategy summary */}
                         <div className="card-header">
                           <div className="card-title">⚡ 戦略: {strategy}</div>
-                          <span className={`badge ${parseFloat(m.queries?.successRate) >= 90 ? 'badge-green' : parseFloat(m.queries?.successRate) >= 50 ? 'badge-yellow' : 'badge-red'}`}>
+                          <span className={`badge ${parseFloat(m.queries?.successRate ?? '0') >= 90 ? 'badge-green' : parseFloat(m.queries?.successRate ?? '0') >= 50 ? 'badge-yellow' : 'badge-red'}`}>
                             成功率 {m.queries?.successRate}
                           </span>
                         </div>
@@ -169,7 +174,7 @@ export default function Reports() {
                           ))}
                         </div>
 
-                        {/* SQL ファイル別内訳 */}
+                        {/* Per-file breakdown */}
                         {fileEntries.length > 0 && (
                           <>
                             <div style={{ fontSize: 'var(--text-xs)', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-muted)', marginBottom: 'var(--space-2)' }}>
@@ -192,11 +197,11 @@ export default function Reports() {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {fileEntries.map(([fileName, fs]) => (
+                                  {fileEntries.map(([fileName, fs]: [string, FileStats]) => (
                                     <tr key={fileName}>
                                       <td className="font-mono" style={{ fontSize: 'var(--text-xs)' }}>{fileName}</td>
                                       <td style={{ textAlign: 'right' }}><span className="badge badge-green">{fs.completed}</span></td>
-                                      <td style={{ textAlign: 'right' }}>{fs.failed > 0 ? <span className="badge badge-red">{fs.failed}</span> : <span className="text-muted">0</span>}</td>
+                                      <td style={{ textAlign: 'right' }}>{(fs.failed ?? 0) > 0 ? <span className="badge badge-red">{fs.failed}</span> : <span className="text-muted">0</span>}</td>
                                       <td style={{ textAlign: 'right' }}>{fs.successRate}</td>
                                       <td className="font-mono" style={{ textAlign: 'right' }}>{fs.latency?.mean ?? '-'}</td>
                                       <td className="font-mono" style={{ textAlign: 'right' }}>{fs.latency?.p50 ?? '-'}</td>

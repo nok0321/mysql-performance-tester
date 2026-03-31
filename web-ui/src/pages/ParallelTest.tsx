@@ -7,41 +7,50 @@ import {
 import StatCardsGrid from '../components/StatCardsGrid';
 import ProgressBar from '../components/ProgressBar';
 import useTestExecution from '../hooks/useTestExecution';
+import type {
+  Connection, SqlItem, ParallelTestForm,
+  WsMessage, RunAction,
+} from '../types';
 
-export default function ParallelTest({ wsMessages, subscribeTestId }) {
-  const [connections, setConnections] = useState([]);
-  const [sqlSnippets, setSqlSnippets] = useState([]);
-  const [form, setForm] = useState({
+interface Props {
+  wsMessages: WsMessage[];
+  subscribeTestId: (testId: string) => void;
+}
+
+export default function ParallelTest({ wsMessages, subscribeTestId }: Props) {
+  const [connections, setConnections] = useState<Connection[]>([]);
+  const [sqlSnippets, setSqlSnippets] = useState<SqlItem[]>([]);
+  const [form, setForm] = useState<ParallelTestForm>({
     connectionId: '',
     testName: '並列テスト',
     parallelThreads: 10,
     testIterations: 20,
     parallelDirectory: './parallel',
   });
-  const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const setF = (k: string, v: string | number) => setForm(f => ({ ...f, [k]: v }));
 
-  const [sqlMode, setSqlMode] = useState('directory');
-  const [selectedSqlIds, setSelectedSqlIds] = useState([]);
+  const [sqlMode, setSqlMode] = useState<'directory' | 'library'>('directory');
+  const [selectedSqlIds, setSelectedSqlIds] = useState<string[]>([]);
 
   const { run, dispatch, setCurrentTestId } = useTestExecution(wsMessages);
 
   useEffect(() => {
-    connectionsApi.list().then(setConnections).catch(() => { });
-    sqlLibraryApi.list().then(setSqlSnippets).catch(() => { });
+    connectionsApi.list().then(setConnections).catch(() => { /* ignore */ });
+    sqlLibraryApi.list().then(setSqlSnippets).catch(() => { /* ignore */ });
   }, []);
 
-  const toggleSqlId = (id) => {
+  const toggleSqlId = (id: string) => {
     setSelectedSqlIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
   };
 
   const handleRun = async () => {
-    if (!form.connectionId) return dispatch({ type: 'error', data: { message: '接続先を選択してください' } });
+    if (!form.connectionId) return dispatch({ type: 'error', data: { message: '接続先を選択してください' } } as RunAction);
     if (sqlMode === 'library' && selectedSqlIds.length === 0)
-      return dispatch({ type: 'error', data: { message: 'SQL ライブラリから1件以上選択してください' } });
+      return dispatch({ type: 'error', data: { message: 'SQL ライブラリから1件以上選択してください' } } as RunAction);
 
-    dispatch({ type: 'start', progress: { current: 0, total: form.parallelThreads * form.testIterations } });
+    dispatch({ type: 'start', progress: { current: 0, total: form.parallelThreads * form.testIterations, duration: null } });
     setCurrentTestId(null);
 
     try {
@@ -52,14 +61,14 @@ export default function ParallelTest({ wsMessages, subscribeTestId }) {
       setCurrentTestId(testId);
       subscribeTestId?.(testId);
     } catch (e) {
-      dispatch({ type: 'error', data: { message: e.message } });
+      dispatch({ type: 'error', data: { message: (e as Error).message } });
     }
   };
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 'var(--space-5)', alignItems: 'start' }}>
 
-      {/* 設定パネル */}
+      {/* Settings panel */}
       <div className="card">
         <div className="card-title mb-4">⚡ 並列テスト設定</div>
 
@@ -89,7 +98,7 @@ export default function ParallelTest({ wsMessages, subscribeTestId }) {
           </div>
         </div>
 
-        {/* SQL ソース切り替え */}
+        {/* SQL source toggle */}
         <div className="form-group">
           <label className="form-label">SQL ソース</label>
           <div className="flex gap-2" style={{ marginBottom: 'var(--space-3)' }}>
@@ -122,8 +131,8 @@ export default function ParallelTest({ wsMessages, subscribeTestId }) {
               ) : (
                 sqlSnippets.map(s => (
                   <label key={s.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 4px', cursor: 'pointer', borderRadius: 4, transition: 'background 0.15s' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--color-surface-2)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                     <input type="checkbox"
                       checked={selectedSqlIds.includes(s.id)}
                       onChange={() => toggleSqlId(s.id)}
@@ -156,7 +165,7 @@ export default function ParallelTest({ wsMessages, subscribeTestId }) {
         </div>
       </div>
 
-      {/* 結果パネル */}
+      {/* Results panel */}
       <div>
         {run.runState === 'running' && (
           <ProgressBar
@@ -189,7 +198,7 @@ export default function ParallelTest({ wsMessages, subscribeTestId }) {
                 <div key={strategy} className="card mb-4">
                   <div className="card-header">
                     <div className="card-title">⚡ 戦略: {strategy}</div>
-                    <span className={`badge ${parseFloat(m.queries?.successRate) >= 90 ? 'badge-green' : parseFloat(m.queries?.successRate) >= 50 ? 'badge-yellow' : 'badge-red'}`}>
+                    <span className={`badge ${parseFloat(m.queries?.successRate ?? '0') >= 90 ? 'badge-green' : parseFloat(m.queries?.successRate ?? '0') >= 50 ? 'badge-yellow' : 'badge-red'}`}>
                       成功率 {m.queries?.successRate}
                     </span>
                   </div>
@@ -228,7 +237,7 @@ export default function ParallelTest({ wsMessages, subscribeTestId }) {
                                   {fileName}
                                 </td>
                                 <td style={{ textAlign: 'right' }}><span className="badge badge-green">{fs.completed}</span></td>
-                                <td style={{ textAlign: 'right' }}>{fs.failed > 0 ? <span className="badge badge-red">{fs.failed}</span> : <span className="text-muted">0</span>}</td>
+                                <td style={{ textAlign: 'right' }}>{(fs.failed ?? 0) > 0 ? <span className="badge badge-red">{fs.failed}</span> : <span className="text-muted">0</span>}</td>
                                 <td style={{ textAlign: 'right' }}>{fs.successRate}</td>
                                 <td className="font-mono" style={{ textAlign: 'right' }}>{fs.latency?.mean ?? '-'}</td>
                                 <td className="font-mono" style={{ textAlign: 'right' }}>{fs.latency?.p50 ?? '-'}</td>

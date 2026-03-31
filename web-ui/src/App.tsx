@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import { useState, useCallback } from 'react';
 import { useWebSocket } from './hooks/useWebSocket';
+import type { WsMessage } from './types';
 
 import Connections from './pages/Connections';
 import SqlLibrary from './pages/SqlLibrary';
@@ -10,7 +11,11 @@ import Reports from './pages/Reports';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 
-const NAV = [
+type NavItem =
+  | { section: string; path?: undefined; icon?: undefined; label?: undefined }
+  | { path: string; icon: string; label: string; section?: undefined };
+
+const NAV: NavItem[] = [
   { section: 'Setup' },
   { path: '/connections', icon: '🔌', label: '接続管理' },
   { path: '/sql-library', icon: '📝', label: 'SQL ライブラリ' },
@@ -38,7 +43,7 @@ function Sidebar() {
           ) : (
             <NavLink
               key={item.path}
-              to={item.path}
+              to={item.path!}
               className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
             >
               <span className="nav-icon">{item.icon}</span>
@@ -51,7 +56,7 @@ function Sidebar() {
   );
 }
 
-const PAGE_META = {
+const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
   '/connections': { title: '接続管理', subtitle: 'MySQL 接続先の登録と疎通確認' },
   '/sql-library': { title: 'SQL ライブラリ', subtitle: 'テスト用 SQL の登録・管理' },
   '/single-test': { title: '単一テスト', subtitle: 'ウォームアップ付きクエリ性能測定' },
@@ -61,7 +66,7 @@ const PAGE_META = {
   '/settings': { title: '設定', subtitle: 'デフォルト設定の管理' },
 };
 
-function TopBar({ wsConnected }) {
+function TopBar({ wsConnected }: { wsConnected: boolean }) {
   const location = useLocation();
   const meta = PAGE_META[location.pathname] || { title: 'MySQL Performance Tester' };
   return (
@@ -80,9 +85,9 @@ function TopBar({ wsConnected }) {
 
 export default function App() {
   const [wsConnected, setWsConnected] = useState(false);
-  const [wsMessages, setWsMessages] = useState([]);
+  const [wsMessages, setWsMessages] = useState<WsMessage[]>([]);
 
-  const handleWsMessage = useCallback((msg) => {
+  const handleWsMessage = useCallback((msg: WsMessage) => {
     if (msg.type === 'connected') {
       setWsConnected(true);
     }

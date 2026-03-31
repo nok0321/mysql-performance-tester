@@ -1,7 +1,16 @@
 /**
  * Reusable progress bar component for test execution
  */
-export default function ProgressBar({ current, total, label, children }) {
+import type { ReactNode } from 'react';
+
+interface Props {
+  current: number;
+  total: number;
+  label: string;
+  children?: ReactNode;
+}
+
+export default function ProgressBar({ current, total, label, children }: Props) {
   const pct = total > 0 ? Math.round((current / total) * 100) : 0;
 
   return (
