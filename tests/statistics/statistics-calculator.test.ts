@@ -79,12 +79,24 @@ describe('StatisticsCalculator', () => {
             expect(result!.count.included).toBeLessThan(result!.count.total);
         });
 
-        it('handles single-element array', () => {
+        it('calculates sample variance with N-1 (Bessel correction)', () => {
+            // [2, 4, 4, 4, 5, 5, 7, 9] — mean = 5
+            // Sum of squared deviations = 9+1+1+1+0+0+4+16 = 32
+            // Sample variance = 32 / (8-1) = 32/7 ≈ 4.571
+            const data = [2, 4, 4, 4, 5, 5, 7, 9];
+            const result = StatisticsCalculator.calculate(data, { includeDistribution: false });
+
+            expect(result!.spread.variance).toBeCloseTo(4.571, 2);
+            expect(result!.spread.stdDev).toBeCloseTo(Math.sqrt(32 / 7), 2);
+        });
+
+        it('handles single-element array (variance = 0)', () => {
             const result = StatisticsCalculator.calculate([42], { includeDistribution: false });
 
             expect(result!.basic.min).toBe(42);
             expect(result!.basic.max).toBe(42);
             expect(result!.basic.mean).toBe(42);
+            expect(result!.spread.variance).toBe(0);
             expect(result!.spread.stdDev).toBe(0);
         });
 
