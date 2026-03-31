@@ -22,6 +22,7 @@ import {
 } from '../../lib/reports/exporters/index.js';
 import { validateId } from '../security/validate-id.js';
 import { asyncHandler } from '../middleware/async-handler.js';
+import { parsePagination, paginate } from '../middleware/pagination.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RESULTS_DIR: string = path.join(__dirname, '..', '..', 'performance_results');
@@ -47,7 +48,7 @@ interface ExporterConfig {
 }
 
 /** Report list (performance_results/ JSON files) */
-router.get('/', asyncHandler(async (_req: Request, res: Response) => {
+router.get('/', asyncHandler(async (req: Request, res: Response) => {
   await fs.mkdir(RESULTS_DIR, { recursive: true });
   const entries = await fs.readdir(RESULTS_DIR, { withFileTypes: true });
 
@@ -86,7 +87,9 @@ router.get('/', asyncHandler(async (_req: Request, res: Response) => {
   }
 
   reports.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  res.json({ success: true, data: reports });
+
+  const { limit, offset } = parsePagination(req);
+  res.json(paginate(reports, limit, offset));
 }));
 
 /** Individual report detail */
