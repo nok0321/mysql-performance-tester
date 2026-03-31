@@ -49,9 +49,10 @@ export class StatisticsCalculator {
         const min = filtered[0];
         const max = filtered[filtered.length - 1];
 
-        // Variance and standard deviation
-        const variance = filtered.reduce((s, val) =>
-            s + Math.pow(val - mean, 2), 0) / count;
+        // Variance and standard deviation (sample variance: N-1 for unbiased estimation)
+        const variance = count > 1
+            ? filtered.reduce((s, val) => s + Math.pow(val - mean, 2), 0) / (count - 1)
+            : 0;
         const stdDev = Math.sqrt(variance);
 
         // Coefficient of Variation
