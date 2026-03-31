@@ -72,6 +72,7 @@ export const sqlApi = {
 export const testsApi = {
   runSingle: (data: unknown): Promise<{ testId: string }> => post<{ testId: string }>('/tests/single', data),
   runParallel: (data: unknown): Promise<{ testId: string }> => post<{ testId: string }>('/tests/parallel', data),
+  runComparison: (data: unknown): Promise<{ testId: string }> => post<{ testId: string }>('/tests/comparison', data),
   listResults: (): Promise<unknown[]> => get<unknown[]>('/tests/results'),
   getResult: (id: string): Promise<unknown> => get<unknown>(`/tests/results/${id}`),
 };

@@ -1,83 +1,16 @@
 import { useState, useEffect } from 'react';
 import { connectionsApi, sqlApi, testsApi } from '../api/client';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer
-} from 'recharts';
 import StatCardsGrid from '../components/StatCardsGrid';
 import ProgressBar from '../components/ProgressBar';
 import PercentilesTable from '../components/PercentilesTable';
+import HistogramChart from '../components/HistogramChart';
+import ExplainPanel from '../components/ExplainPanel';
+import RecommendPanel from '../components/RecommendPanel';
 import useTestExecution from '../hooks/useTestExecution';
 import type {
   Connection, SqlItem, SingleTestForm,
-  Distribution, ExplainAnalyze, QueryPlan,
   WsMessage, RunAction,
 } from '../types';
-
-/** Latency distribution histogram */
-function HistogramChart({ distribution }: { distribution: Distribution | undefined }) {
-  if (!distribution?.buckets) return <div className="empty-state"><p>分布データなし</p></div>;
-  const data = distribution.buckets.map(b => ({ name: `${b.min?.toFixed(0)}ms`, count: b.count }));
-  return (
-    <ResponsiveContainer width="100%" height={220}>
-      <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-        <XAxis dataKey="name" tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }} />
-        <YAxis tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }} />
-        <Tooltip contentStyle={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 6 }} />
-        <Bar dataKey="count" fill="var(--color-accent)" radius={[3, 3, 0, 0]} />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-/** EXPLAIN result display */
-function ExplainPanel({ explain }: { explain: ExplainAnalyze | undefined }) {
-  if (!explain) return <div className="empty-state"><p>EXPLAIN データなし（無効またはエラー）</p></div>;
-  return (
-    <div>
-      {explain.data != null && (
-        <div className="code-block">{JSON.stringify(explain.data, null, 2)}</div>
-      )}
-      {explain.analyze?.tree && (
-        <>
-          <div className="section-title mt-4">EXPLAIN ANALYZE</div>
-          <div className="code-block">{explain.analyze.tree}</div>
-        </>
-      )}
-    </div>
-  );
-}
-
-/** Recommendations */
-function RecommendPanel({ plan }: { plan: QueryPlan | undefined }) {
-  if (!plan) return <div className="empty-state"><p>推奨データなし</p></div>;
-  const issues = plan.issues || [];
-  const recs = plan.recommendations || [];
-  return (
-    <div>
-      {issues.length > 0 && (
-        <>
-          <div className="section-title">⚠ 検出された問題</div>
-          {issues.map((iss, i) => (
-            <div key={i} className="alert alert-error" style={{ marginBottom: 8 }}>🔴 {iss}</div>
-          ))}
-        </>
-      )}
-      {recs.length > 0 && (
-        <>
-          <div className="section-title mt-4">💡 推奨事項</div>
-          {recs.map((rec, i) => (
-            <div key={i} className="alert alert-info" style={{ marginBottom: 8 }}>➤ {rec}</div>
-          ))}
-        </>
-      )}
-      {issues.length === 0 && recs.length === 0 && (
-        <div className="empty-state"><p>特に問題は検出されませんでした</p></div>
-      )}
-    </div>
-  );
-}
 
 interface Props {
   wsMessages: WsMessage[];

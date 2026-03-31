@@ -6,7 +6,7 @@
  * SingleTest and ParallelTest pages.
  */
 import { useReducer, useEffect, useState } from 'react';
-import type { RunState, RunAction, WsMessage } from '../types';
+import type { RunState, RunAction, WsMessage, ComparisonResult } from '../types';
 
 const INIT_RUN: RunState = {
   runState: null,
@@ -14,6 +14,7 @@ const INIT_RUN: RunState = {
   liveData: [],
   result: null,
   results: null,
+  comparison: null,
   errorMsg: '',
 };
 
@@ -33,6 +34,7 @@ function runReducer(state: RunState, action: RunAction): RunState {
         runState: 'complete',
         result: action.data.result || null,
         results: action.data.results || null,
+        comparison: action.data.comparison || null,
       };
     case 'error':
       return { ...state, runState: 'error', errorMsg: action.data.message };
@@ -55,7 +57,21 @@ export default function useTestExecution(wsMessages: WsMessage[]): {
     const relevant = wsMessages.filter(m => m.testId === currentTestId);
     if (!relevant.length) return;
     const last = relevant[relevant.length - 1];
-    if (['progress', 'complete', 'error'].includes(last.type)) dispatch(last as RunAction);
+    if (last.type === 'complete' && last.data && 'resultA' in (last.data as unknown as Record<string, unknown>)) {
+      // Comparison test complete — transform to RunAction with comparison field
+      const d = last.data as unknown as Record<string, unknown>;
+      const comparison: ComparisonResult = {
+        resultA: { statistics: (d.resultA as Record<string, unknown>)?.statistics, explainAnalyze: (d.resultA as Record<string, unknown>)?.explainAnalyze } as ComparisonResult['resultA'],
+        resultB: { statistics: (d.resultB as Record<string, unknown>)?.statistics, explainAnalyze: (d.resultB as Record<string, unknown>)?.explainAnalyze } as ComparisonResult['resultB'],
+        delta: d.delta as ComparisonResult['delta'],
+        executionMode: d.executionMode as ComparisonResult['executionMode'],
+        testNameA: (d.testNameA as string) || 'Query A',
+        testNameB: (d.testNameB as string) || 'Query B',
+      };
+      dispatch({ type: 'complete', data: { comparison } });
+    } else if (['progress', 'complete', 'error'].includes(last.type)) {
+      dispatch(last as RunAction);
+    }
   }, [wsMessages, currentTestId]);
 
   return { run, dispatch, currentTestId, setCurrentTestId };
