@@ -8,7 +8,7 @@
  * - Query execution
  */
 
-import mysql, { type Pool, type PoolConnection, type RowDataPacket, type FieldPacket } from 'mysql2/promise';
+import mysql, { type Pool, type PoolConnection, type PoolOptions, type RowDataPacket, type FieldPacket } from 'mysql2/promise';
 import { buildPoolConfig } from '../config/database-configuration.js';
 import type { DbConfig } from '../types/index.js';
 
@@ -176,6 +176,14 @@ Connection Check:
      * Get connection pool status
      * @returns Pool status info, or null if pool is not initialized
      */
+    /**
+     * Get the underlying connection pool (for parallel execution).
+     * Returns null if pool is not initialized.
+     */
+    getPool(): Pool | null {
+        return this.pool;
+    }
+
     getPoolStatus(): PoolStatus | null {
         if (!this.pool) {
             return null;
@@ -184,7 +192,9 @@ Connection Check:
         // mysql2 internal properties (_allConnections, etc.) are private API -- avoid using them.
         // connectionLimit is safely accessible from pool config.
         try {
-            const connectionLimit = (this.pool as any).pool?.config?.connectionLimit ?? null;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mysql2 Pool does not expose config in public types
+            const poolAny = this.pool as Record<string, any>;
+            const connectionLimit = poolAny.pool?.config?.connectionLimit ?? null;
             return { connectionLimit };
         } catch {
             return null;

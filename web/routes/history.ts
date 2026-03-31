@@ -18,7 +18,7 @@ import { fingerprintQuery } from '../../lib/utils/query-fingerprint.js';
 import { computeComparisonDelta } from '../../lib/utils/comparison-delta.js';
 import * as eventsStore from '../store/events-store.js';
 import { asyncHandler } from '../middleware/async-handler.js';
-import type { QueryFingerprintSummary, QueryHistoryEntry, QueryEventType } from '../../lib/types/index.js';
+import type { QueryFingerprintSummary, QueryHistoryEntry, QueryEventType, StatisticsResult } from '../../lib/types/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RESULTS_DIR: string = path.join(__dirname, '..', '..', 'performance_results');
@@ -35,7 +35,7 @@ interface ParsedSingleResult {
   result: {
     query?: string;
     timestamp?: string;
-    statistics?: Record<string, unknown>;
+    statistics?: StatisticsResult;
     explainAnalyze?: { data?: Record<string, unknown> };
     [key: string]: unknown;
   };
@@ -161,7 +161,7 @@ router.get('/:fingerprint', asyncHandler(async (req: Request, res: Response) => 
         testId: r.testId,
         testName: r.testName,
         timestamp: r.result.timestamp || '',
-        statistics: r.result.statistics as unknown as QueryHistoryEntry['statistics'],
+        statistics: r.result.statistics,
         explainAccessType,
       });
     }
@@ -205,10 +205,7 @@ router.get('/:fingerprint/compare', asyncHandler(async (req: Request, res: Respo
       return;
     }
 
-    const delta = computeComparisonDelta(
-      statsBefore as Parameters<typeof computeComparisonDelta>[0],
-      statsAfter as Parameters<typeof computeComparisonDelta>[0],
-    );
+    const delta = computeComparisonDelta(statsBefore, statsAfter);
 
     res.json({
       success: true,

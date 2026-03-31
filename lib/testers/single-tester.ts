@@ -20,8 +20,9 @@ import { TestResult } from '../models/test-result.js';
 import type { ExecutionResult } from '../models/test-result.js';
 import { ExplainAnalyzer, OptimizerTraceAnalyzer, PerformanceSchemaAnalyzer, BufferPoolMonitor } from '../analyzers/index.js';
 import { WarmupManager } from '../warmup/index.js';
+import type { WarmupSummary } from '../warmup/warmup-manager.js';
 import { FileManager } from '../storage/file-manager.js';
-import type { DbConfig, TestConfig } from '../types/index.js';
+import type { DbConfig, TestConfig, ExplainAnalyzeResult } from '../types/index.js';
 
 /** Analyzers container */
 interface Analyzers {
@@ -74,8 +75,16 @@ export class MySQLPerformanceTester extends EventEmitter {
 
         // Dependency injection (use defaults when omitted)
         this.db            = deps.db            ?? null;
-        this.warmupManager = deps.warmupManager ?? new WarmupManager(testConfig as unknown as Record<string, unknown>);
-        this.fileManager   = deps.fileManager   ?? new FileManager(testConfig.fileManager as unknown as Record<string, unknown>);
+        this.warmupManager = deps.warmupManager ?? new WarmupManager({
+            warmupIterations: testConfig.warmupIterations ?? undefined,
+            warmupPercentage: testConfig.warmupPercentage,
+        });
+        this.fileManager   = deps.fileManager   ?? new FileManager({
+            outputDir: testConfig.fileManager?.outputDir,
+            enableDebugOutput: testConfig.fileManager?.enableDebugOutput,
+            enableTimestamp: testConfig.fileManager?.enableTimestamp,
+            maxFileSize: testConfig.fileManager?.maxFileSize,
+        });
 
         // Analyzers are deferred until initialize() when this.db is available
         // Individual analyzers can be overridden via deps.analyzers (for mock injection, etc.)
@@ -279,12 +288,12 @@ export class MySQLPerformanceTester extends EventEmitter {
         // EXPLAIN ANALYZE (MySQL 8.0.18+)
         if (this.testConfig.enableExplainAnalyze && this.db!.isExplainAnalyzeSupported()) {
             const explainAnalyzeResult = await this.analyzers!.explain.analyzeQueryWithExecution(query);
-            if (explainAnalyzeResult) {
+            if (explainAnalyzeResult && testResult.explainAnalyze) {
                 testResult.explainAnalyze = {
-                    ...(testResult.explainAnalyze as Record<string, unknown>),
-                    analyze: explainAnalyzeResult,
-                };
-                await this.fileManager.saveExplainAnalyze(explainAnalyzeResult as unknown as Record<string, unknown>, testResult.testName);
+                    ...testResult.explainAnalyze,
+                    ...explainAnalyzeResult,
+                } as ExplainAnalyzeResult;
+                await this.fileManager.saveExplainAnalyze({ ...explainAnalyzeResult }, testResult.testName);
             }
         }
 
@@ -292,8 +301,7 @@ export class MySQLPerformanceTester extends EventEmitter {
         if (this.testConfig.enableOptimizerTrace) {
             testResult.optimizerTrace = await this.analyzers!.trace.captureTrace(query);
             if (testResult.optimizerTrace) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                await this.fileManager.saveOptimizerTrace(testResult.optimizerTrace as any, testResult.testName);
+                await this.fileManager.saveOptimizerTrace({ ...testResult.optimizerTrace }, testResult.testName);
             }
         }
 
@@ -307,9 +315,9 @@ export class MySQLPerformanceTester extends EventEmitter {
             testResult.performanceSchemaMetrics = await this.analyzers!.performanceSchema.collectMetrics();
         }
 
-        if (testResult.explainAnalyze && (testResult.explainAnalyze as Record<string, unknown>).data) {
+        if (testResult.explainAnalyze && 'data' in testResult.explainAnalyze && testResult.explainAnalyze.data) {
             await this.fileManager.saveQueryPlan(
-                (testResult.explainAnalyze as Record<string, unknown>).data as Record<string, unknown>,
+                testResult.explainAnalyze.data,
                 testResult.testName
             );
         }
@@ -325,14 +333,14 @@ export class MySQLPerformanceTester extends EventEmitter {
         console.log('-'.repeat(60));
 
         if (testResult.warmupResult) {
-            const warmup = testResult.warmupResult as Record<string, unknown>;
+            const warmup = testResult.warmupResult as WarmupSummary;
             console.log(`\nウォームアップ:`);
             console.log(`  実行回数: ${warmup.count}回`);
-            console.log(`  成功率: ${((warmup.successCount as number) / (warmup.count as number) * 100).toFixed(2)}%`);
+            console.log(`  成功率: ${(warmup.successCount / warmup.count * 100).toFixed(2)}%`);
             console.log(`  平均時間: ${warmup.averageDuration}ms`);
 
             if (warmup.cacheEffectiveness) {
-                const ce = warmup.cacheEffectiveness as Record<string, unknown>;
+                const ce = warmup.cacheEffectiveness;
                 console.log(`  キャッシュ効果: ${ce.effectivenessRating}`);
                 console.log(`  改善率: ${ce.improvementPercentage}%`);
             }
@@ -368,7 +376,7 @@ export class MySQLPerformanceTester extends EventEmitter {
         }
 
         if (testResult.bufferPoolAnalysis) {
-            const bp = (testResult.bufferPoolAnalysis as Record<string, unknown>).metrics as Record<string, unknown>;
+            const bp = testResult.bufferPoolAnalysis.metrics;
             console.log(`\nBuffer Pool:`);
             console.log(`  ヒット率: ${bp.hitRatio}%`);
             console.log(`  総ページ: ${bp.pagesTotal}`);
@@ -376,18 +384,18 @@ export class MySQLPerformanceTester extends EventEmitter {
         }
 
         if (testResult.performanceSchemaMetrics) {
-            const ps = testResult.performanceSchemaMetrics as Record<string, unknown>;
+            const ps = testResult.performanceSchemaMetrics;
 
             if (ps.connections) {
-                const conn = ps.connections as Record<string, unknown>;
+                const conn = ps.connections;
                 console.log(`\n接続状況:`);
                 console.log(`  接続中: ${conn.Threads_connected}`);
                 console.log(`  実行中: ${conn.Threads_running}`);
             }
 
-            if (ps.topQueries && (ps.topQueries as Array<Record<string, unknown>>).length > 0) {
+            if (ps.topQueries && ps.topQueries.length > 0) {
                 console.log(`\nトップクエリ (上位3件):`);
-                (ps.topQueries as Array<Record<string, unknown>>).slice(0, 3).forEach((q, i) => {
+                ps.topQueries.slice(0, 3).forEach((q, i) => {
                     console.log(`  ${i + 1}. 平均: ${q.avgLatency}ms, 実行回数: ${q.executionCount}`);
                 });
             }
