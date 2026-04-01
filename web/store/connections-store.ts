@@ -1,18 +1,15 @@
 /**
- * ConnectionsStore - JSON file persistence for connection settings
- * Saves and manages connection settings in web/data/connections.json
+ * ConnectionsStore - SQLite persistence for connection settings
  *
  * Security:
  * - Passwords are encrypted with AES-256-GCM (see crypto.ts)
  * - update() accepts only whitelisted fields
  * - getAll() masks passwords before returning
- * - getById() is for internal use only (includes password)
+ * - getById() is for internal use only (includes decrypted password)
  */
 
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
+import { getDb } from './database.js';
 import { encrypt, decrypt } from '../security/crypto.js';
 
 /** Stored connection record */
@@ -65,173 +62,154 @@ export interface UpdateConnectionInput {
   poolSize?: number | string;
 }
 
-// In-process mutex to prevent write conflicts
-let _lock: Promise<unknown> = Promise.resolve();
-function withLock<T>(fn: () => Promise<T>): Promise<T> {
-  const next = _lock.then(fn);
-  _lock = next.catch(() => {});
-  return next;
+/** SQLite row shape */
+interface ConnectionRow {
+  id: string;
+  name: string;
+  host: string;
+  port: number;
+  database_: string;
+  user_: string;
+  password: string;
+  pool_size: number;
+  created_at: string;
+  updated_at: string;
 }
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR  = path.join(__dirname, '..', 'data');
-const STORE_FILE = path.join(DATA_DIR, 'connections.json');
-
-/** Atomic write: write to a tmp file then rename */
-async function writeAtomic(filePath: string, data: ConnectionRecord[]): Promise<void> {
-  const tmp = filePath + '.tmp';
-  await fs.writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
-  await fs.rename(tmp, filePath);
+/** Map a SQLite row to a ConnectionRecord */
+function rowToRecord(row: ConnectionRow): ConnectionRecord {
+  return {
+    id:        row.id,
+    name:      row.name,
+    host:      row.host,
+    port:      row.port,
+    database:  row.database_,
+    user:      row.user_,
+    password:  row.password,
+    poolSize:  row.pool_size,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
-/**
- * Safely read a JSON file.
- * On parse failure, back up the corrupted file and return an empty array.
- */
-async function safeReadJson(filePath: string): Promise<ConnectionRecord[]> {
-  const raw = await fs.readFile(filePath, 'utf8');
-  try {
-    return JSON.parse(raw) as ConnectionRecord[];
-  } catch {
-    // Back up the corrupted file and reset to empty
-    const backup = `${filePath}.corrupt_${Date.now()}`;
-    await fs.rename(filePath, backup).catch(() => {});
-    console.error(`[Store] JSON parse failed for ${filePath}. Backed up to ${backup}. Resetting to empty.`);
-    await fs.writeFile(filePath, '[]', 'utf8').catch(() => {});
-    return [];
-  }
+/** Mask a connection record's password */
+function maskRecord(record: ConnectionRecord): MaskedConnectionRecord {
+  const { password, ...rest } = record;
+  return { ...rest, passwordMasked: password ? '••••••••' : '' };
 }
 
 /** Whitelist of fields accepted by update() */
 const UPDATABLE_FIELDS = new Set(['name', 'host', 'port', 'database', 'user', 'password', 'poolSize']);
 
 /**
- * Initialize the store (create the file if it does not exist)
- */
-async function ensureStore(): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  try {
-    await fs.access(STORE_FILE);
-  } catch {
-    await fs.writeFile(STORE_FILE, JSON.stringify([], null, 2), 'utf8');
-  }
-}
-
-/**
  * Get all connection settings (passwords are masked)
  */
 export async function getAll(): Promise<MaskedConnectionRecord[]> {
-  await ensureStore();
-  const connections = await safeReadJson(STORE_FILE);
-  return connections.map(({ password, ...rest }) => ({
-    ...rest,
-    passwordMasked: password ? '••••••••' : ''
-  }));
+  const db = getDb();
+  const rows = db.prepare('SELECT * FROM connections').all() as ConnectionRow[];
+  return rows.map(row => maskRecord(rowToRecord(row)));
 }
 
 /**
  * Get a connection setting by ID (internal use - includes decrypted password)
  */
 export async function getById(id: string): Promise<ConnectionRecord | null> {
-  await ensureStore();
-  const connections = await safeReadJson(STORE_FILE);
-  const conn = connections.find(c => c.id === id) || null;
-  if (!conn) return null;
-
-  // Decrypt password before returning
-  return { ...conn, password: decrypt(conn.password) };
+  const db = getDb();
+  const row = db.prepare('SELECT * FROM connections WHERE id = ?').get(id) as ConnectionRow | undefined;
+  if (!row) return null;
+  const record = rowToRecord(row);
+  return { ...record, password: decrypt(record.password) };
 }
 
 /**
  * Create a new connection setting (password is encrypted before storage)
  */
-export function create(connection: CreateConnectionInput): Promise<MaskedConnectionRecord> {
-  return withLock(async () => {
-    await ensureStore();
-    const raw = await fs.readFile(STORE_FILE, 'utf8');
-    const connections: ConnectionRecord[] = JSON.parse(raw);
+export async function create(connection: CreateConnectionInput): Promise<MaskedConnectionRecord> {
+  const db = getDb();
+  const now = new Date().toISOString();
+  const record: ConnectionRecord = {
+    id:        `conn_${randomUUID()}`,
+    name:      connection.name     || 'New Connection',
+    host:      connection.host     || 'localhost',
+    port:      Number(connection.port) || 3306,
+    database:  connection.database || '',
+    user:      connection.user     || 'root',
+    password:  encrypt(connection.password || ''),
+    poolSize:  Number(connection.poolSize) || 10,
+    createdAt: now,
+    updatedAt: now,
+  };
 
-    const newConnection: ConnectionRecord = {
-      id:        `conn_${randomUUID()}`,
-      name:      connection.name     || `Connection ${connections.length + 1}`,
-      host:      connection.host     || 'localhost',
-      port:      Number(connection.port) || 3306,
-      database:  connection.database || '',
-      user:      connection.user     || 'root',
-      password:  encrypt(connection.password || ''),  // encrypt before storing
-      poolSize:  Number(connection.poolSize) || 10,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+  // Dynamic name: "Connection N+1"
+  if (!connection.name) {
+    const countRow = db.prepare('SELECT COUNT(*) AS cnt FROM connections').get() as { cnt: number };
+    record.name = `Connection ${countRow.cnt + 1}`;
+  }
 
-    connections.push(newConnection);
-    await writeAtomic(STORE_FILE, connections);
+  db.prepare(`
+    INSERT INTO connections (id, name, host, port, database_, user_, password, pool_size, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(record.id, record.name, record.host, record.port, record.database, record.user, record.password, record.poolSize, record.createdAt, record.updatedAt);
 
-    const { password, ...rest } = newConnection;
-    return { ...rest, passwordMasked: password ? '••••••••' : '' };
-  });
+  return maskRecord(record);
 }
 
 /**
  * Update a connection setting (whitelist approach)
  */
-export function update(id: string, updates: UpdateConnectionInput): Promise<MaskedConnectionRecord | null> {
-  return withLock(async () => {
-    await ensureStore();
-    const raw = await fs.readFile(STORE_FILE, 'utf8');
-    const connections: ConnectionRecord[] = JSON.parse(raw);
+export async function update(id: string, updates: UpdateConnectionInput): Promise<MaskedConnectionRecord | null> {
+  const db = getDb();
 
-    const index = connections.findIndex(c => c.id === id);
-    if (index === -1) return null;
+  // Check existence first
+  const existing = db.prepare('SELECT * FROM connections WHERE id = ?').get(id) as ConnectionRow | undefined;
+  if (!existing) return null;
 
-    // Whitelist: only apply allowed fields
-    const safeUpdates: Record<string, unknown> = {};
-    for (const field of UPDATABLE_FIELDS) {
-      if (Object.prototype.hasOwnProperty.call(updates, field)) {
-        safeUpdates[field] = (updates as Record<string, unknown>)[field];
-      }
+  // Build SET clause from whitelisted fields
+  const setClauses: string[] = [];
+  const params: unknown[] = [];
+
+  // Map camelCase input fields to snake_case columns
+  const fieldToColumn: Record<string, string> = {
+    name: 'name', host: 'host', port: 'port',
+    database: 'database_', user: 'user_', password: 'password', poolSize: 'pool_size',
+  };
+
+  for (const field of UPDATABLE_FIELDS) {
+    if (!Object.prototype.hasOwnProperty.call(updates, field)) continue;
+    let value = (updates as Record<string, unknown>)[field];
+
+    if (field === 'port') {
+      value = Number(value) || existing.port;
+    } else if (field === 'poolSize') {
+      value = Number(value) || existing.pool_size;
+    } else if (field === 'password') {
+      value = encrypt((value as string) || '');
     }
 
-    // Ensure numeric types
-    if (safeUpdates.port !== undefined) {
-      safeUpdates.port = Number(safeUpdates.port) || connections[index].port;
-    }
-    if (safeUpdates.poolSize !== undefined) {
-      safeUpdates.poolSize = Number(safeUpdates.poolSize) || connections[index].poolSize;
-    }
+    setClauses.push(`${fieldToColumn[field]} = ?`);
+    params.push(value);
+  }
 
-    // Encrypt password if it is being updated
-    if (Object.prototype.hasOwnProperty.call(safeUpdates, 'password')) {
-      safeUpdates.password = encrypt((safeUpdates.password as string) || '');
-    }
+  if (setClauses.length === 0) {
+    return maskRecord(rowToRecord(existing));
+  }
 
-    connections[index] = {
-      ...connections[index],
-      ...safeUpdates,
-      id,  // ID cannot be changed
-      updatedAt: new Date().toISOString()
-    } as ConnectionRecord;
+  // Always update updated_at
+  setClauses.push('updated_at = ?');
+  params.push(new Date().toISOString());
+  params.push(id);
 
-    await writeAtomic(STORE_FILE, connections);
-    const { password, ...rest } = connections[index];
-    return { ...rest, passwordMasked: password ? '••••••••' : '' };
-  });
+  db.prepare(`UPDATE connections SET ${setClauses.join(', ')} WHERE id = ?`).run(...params);
+
+  const updated = db.prepare('SELECT * FROM connections WHERE id = ?').get(id) as ConnectionRow;
+  return maskRecord(rowToRecord(updated));
 }
 
 /**
  * Delete a connection setting
  */
-export function remove(id: string): Promise<boolean> {
-  return withLock(async () => {
-    await ensureStore();
-    const raw = await fs.readFile(STORE_FILE, 'utf8');
-    const connections: ConnectionRecord[] = JSON.parse(raw);
-
-    const index = connections.findIndex(c => c.id === id);
-    if (index === -1) return false;
-
-    connections.splice(index, 1);
-    await writeAtomic(STORE_FILE, connections);
-    return true;
-  });
+export async function remove(id: string): Promise<boolean> {
+  const db = getDb();
+  const result = db.prepare('DELETE FROM connections WHERE id = ?').run(id);
+  return result.changes > 0;
 }

@@ -25,6 +25,10 @@ jobs:
       - name: Install root dependencies
         run: npm install
 
+      - name: Install web dependencies
+        run: npm install
+        working-directory: web
+
       - name: Run unit tests
         run: npm run test:unit
 

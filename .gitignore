@@ -29,6 +29,12 @@ temp/
 # パスワードを含む接続設定
 web/data/connections.json
 
+# SQLite database files
+web/data/store.db
+web/data/store.db-wal
+web/data/store.db-shm
+web/data/*.json.migrated
+
 # TypeScript build output
 dist/
 

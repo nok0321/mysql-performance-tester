@@ -4,7 +4,7 @@ export default defineConfig({
     test: {
         coverage: {
             provider: 'v8',
-            include: ['lib/**/*.ts'],
+            include: ['lib/**/*.ts', 'web/store/**/*.ts'],
             exclude: ['lib/**/index.ts'],
             reporter: ['text', 'text-summary'],
             thresholds: {
