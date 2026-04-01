@@ -3,6 +3,7 @@
  * Supports event annotations (e.g., index added) and before/after comparison.
  */
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { historyApi } from '../api/client';
 import TimelineChart from '../components/TimelineChart';
@@ -16,6 +17,7 @@ import type {
 } from '../types';
 
 export default function QueryHistory() {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [fingerprints, setFingerprints] = useState<QueryFingerprintSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,15 +103,15 @@ export default function QueryHistory() {
 
       {/* Left panel: fingerprint list */}
       <div>
-        <div className="section-title">Query Fingerprints</div>
+        <div className="section-title">{t('history.fingerprintTitle')}</div>
         {error && <div className="alert alert-error">{error}</div>}
         {loading ? (
           <div className="empty-state"><div className="spinner spinner-lg" /></div>
         ) : fingerprints.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">🔍</div>
-            <p>履歴データがありません</p>
-            <p className="text-xs text-muted">テストを実行すると自動的に表示されます</p>
+            <p>{t('history.emptyFingerprints')}</p>
+            <p className="text-xs text-muted">{t('history.emptyHint')}</p>
           </div>
         ) : (
           <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
@@ -130,7 +132,7 @@ export default function QueryHistory() {
                   {fp.queryText.length > 60 ? fp.queryText.slice(0, 60) + '...' : fp.queryText}
                 </div>
                 <div className="flex items-center gap-2" style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
-                  <span>{fp.runCount} runs</span>
+                  <span>{t('history.runs', { count: fp.runCount })}</span>
                   <span>|</span>
                   <span>{new Date(fp.latestRunAt).toLocaleDateString('ja-JP')}</span>
                 </div>
@@ -145,7 +147,7 @@ export default function QueryHistory() {
         {!selectedFp ? (
           <div className="empty-state">
             <div className="empty-icon">📊</div>
-            <p>左のリストからクエリを選択してください</p>
+            <p>{t('history.selectQuery')}</p>
           </div>
         ) : timelineLoading ? (
           <div className="empty-state"><div className="spinner spinner-lg" /></div>
@@ -158,8 +160,8 @@ export default function QueryHistory() {
                 style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                 onClick={() => setShowSql(!showSql)}
               >
-                <div className="section-title" style={{ margin: 0 }}>SQL</div>
-                <span className="text-xs text-muted">{showSql ? '▲ hide' : '▼ show'}</span>
+                <div className="section-title" style={{ margin: 0 }}>{t('history.sqlSection')}</div>
+                <span className="text-xs text-muted">{showSql ? `▲ ${t('history.hide')}` : `▼ ${t('history.show')}`}</span>
               </div>
               {showSql && (
                 <pre style={{
@@ -176,21 +178,21 @@ export default function QueryHistory() {
 
             {/* Timeline chart */}
             <div className="card">
-              <div className="section-title">Performance Timeline ({timeline.entries.length} runs)</div>
+              <div className="section-title">{t('history.timelineTitle', { count: timeline.entries.length })}</div>
               <TimelineChart entries={timeline.entries} events={timeline.events} />
             </div>
 
             {/* Event annotations */}
             <div className="card">
-              <div className="section-title">Events</div>
+              <div className="section-title">{t('history.eventsTitle')}</div>
               {timeline.events.length > 0 && (
                 <div style={{ marginBottom: 'var(--space-3)' }}>
                   <table style={{ width: '100%', fontSize: 'var(--text-xs)' }}>
                     <thead>
                       <tr>
-                        <th style={{ textAlign: 'left', padding: '4px 8px' }}>Label</th>
-                        <th style={{ textAlign: 'left', padding: '4px 8px' }}>Type</th>
-                        <th style={{ textAlign: 'left', padding: '4px 8px' }}>Timestamp</th>
+                        <th style={{ textAlign: 'left', padding: '4px 8px' }}>{t('history.eventLabel')}</th>
+                        <th style={{ textAlign: 'left', padding: '4px 8px' }}>{t('history.eventType')}</th>
+                        <th style={{ textAlign: 'left', padding: '4px 8px' }}>{t('history.eventTimestamp')}</th>
                         <th style={{ padding: '4px 8px' }}></th>
                       </tr>
                     </thead>
@@ -208,7 +210,7 @@ export default function QueryHistory() {
                               style={{ fontSize: 'var(--text-xs)', padding: '2px 8px' }}
                               onClick={() => handleDeleteEvent(ev.id)}
                             >
-                              Delete
+                              {t('common.delete')}
                             </button>
                           </td>
                         </tr>
@@ -223,12 +225,12 @@ export default function QueryHistory() {
             {/* Before/After comparison */}
             {timeline.entries.length >= 2 && (
               <div className="card">
-                <div className="section-title">Before / After Comparison</div>
+                <div className="section-title">{t('history.beforeAfter')}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 'var(--space-2)', alignItems: 'end', marginBottom: 'var(--space-3)' }}>
                   <div>
-                    <label className="form-label">Before</label>
+                    <label className="form-label">{t('history.before')}</label>
                     <select className="form-input" value={beforeId} onChange={e => setBeforeId(e.target.value)}>
-                      <option value="">-- select --</option>
+                      <option value="">-- {t('common.select')} --</option>
                       {timeline.entries.map(e => (
                         <option key={e.testId} value={e.testId}>
                           {new Date(e.timestamp).toLocaleString('ja-JP')} ({e.testName})
@@ -237,9 +239,9 @@ export default function QueryHistory() {
                     </select>
                   </div>
                   <div>
-                    <label className="form-label">After</label>
+                    <label className="form-label">{t('history.after')}</label>
                     <select className="form-input" value={afterId} onChange={e => setAfterId(e.target.value)}>
-                      <option value="">-- select --</option>
+                      <option value="">-- {t('common.select')} --</option>
                       {timeline.entries.map(e => (
                         <option key={e.testId} value={e.testId}>
                           {new Date(e.timestamp).toLocaleString('ja-JP')} ({e.testName})
@@ -252,12 +254,12 @@ export default function QueryHistory() {
                     disabled={!beforeId || !afterId || beforeId === afterId || compareLoading}
                     onClick={handleCompare}
                   >
-                    {compareLoading ? '...' : 'Compare'}
+                    {compareLoading ? '...' : t('history.compare')}
                   </button>
                 </div>
 
                 {comparison?.delta && (
-                  <DeltaSummaryBar delta={comparison.delta} nameA="Before" nameB="After" />
+                  <DeltaSummaryBar delta={comparison.delta} nameA={t('history.before')} nameB={t('history.after')} />
                 )}
               </div>
             )}

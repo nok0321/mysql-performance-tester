@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { reportsApi } from '../api/client';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis,
@@ -14,6 +15,7 @@ interface TrendDataPoint {
 }
 
 export default function Analytics() {
+  const { t } = useTranslation();
   const [reports, setReports] = useState<ReportSummary[]>([]);
   const [details, setDetails] = useState<ReportDetail[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,24 +62,24 @@ export default function Analytics() {
   if (reports.length === 0) return (
     <div className="empty-state">
       <div className="empty-icon">📈</div>
-      <p>テストを実行するとアナリティクスが表示されます</p>
+      <p>{t('analytics.emptyState')}</p>
     </div>
   );
 
   return (
     <div>
       <div className="page-header">
-        <h2>アナリティクス</h2>
-        <p>過去のテスト結果からトレンドと改善ポイントを分析します</p>
+        <h2>{t('analytics.title')}</h2>
+        <p>{t('analytics.subtitle')}</p>
       </div>
 
       {/* Summary cards */}
       <div className="card-grid card-grid-4 mb-4">
         {[
-          { label: '総テスト数', value: totalTests, unit: '件' },
-          { label: '単一テスト', value: singleCount, unit: '件' },
-          { label: '並列テスト', value: parallelCount, unit: '件' },
-          { label: '平均 P95', value: avgP95, unit: 'ms' },
+          { label: t('analytics.totalTests'), value: totalTests, unit: t('common.items') },
+          { label: t('analytics.singleTests'), value: singleCount, unit: t('common.items') },
+          { label: t('analytics.parallelTests'), value: parallelCount, unit: t('common.items') },
+          { label: t('analytics.avgP95'), value: avgP95, unit: t('common.ms') },
         ].map(s => (
           <div key={s.label} className="stat-card">
             <div className="stat-label">{s.label}</div>
@@ -90,7 +92,7 @@ export default function Analytics() {
         <>
           {/* P95 trend */}
           <div className="card mb-4">
-            <div className="card-title mb-4">📉 P95 レイテンシ トレンド</div>
+            <div className="card-title mb-4">📉 {t('analytics.p95Trend')}</div>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={trendData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -98,23 +100,23 @@ export default function Analytics() {
                 <YAxis tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }} />
                 <Tooltip contentStyle={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 6 }} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Line type="monotone" dataKey="p50" stroke="var(--color-success)" dot={false} strokeWidth={2} name="P50 (ms)" />
-                <Line type="monotone" dataKey="p95" stroke="var(--color-accent)" dot={false} strokeWidth={2} name="P95 (ms)" />
-                <Line type="monotone" dataKey="p99" stroke="var(--color-warning)" dot={false} strokeWidth={2} name="P99 (ms)" />
+                <Line type="monotone" dataKey="p50" stroke="var(--color-success)" dot={false} strokeWidth={2} name={`P50 (${t('common.ms')})`} />
+                <Line type="monotone" dataKey="p95" stroke="var(--color-accent)" dot={false} strokeWidth={2} name={`${t('common.p95')} (${t('common.ms')})`} />
+                <Line type="monotone" dataKey="p99" stroke="var(--color-warning)" dot={false} strokeWidth={2} name={`${t('common.p99')} (${t('common.ms')})`} />
               </LineChart>
             </ResponsiveContainer>
           </div>
 
           {/* Per-test P95 comparison */}
           <div className="card">
-            <div className="card-title mb-4">📊 テスト別 P95 比較（高い順）</div>
+            <div className="card-title mb-4">📊 {t('analytics.p95Comparison')}</div>
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={sorted} layout="vertical" margin={{ left: 80 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                <XAxis type="number" tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }} unit="ms" />
+                <XAxis type="number" tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }} unit={t('common.ms')} />
                 <YAxis type="category" dataKey="name" tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }} width={80} />
                 <Tooltip contentStyle={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 6 }} />
-                <Bar dataKey="p95" fill="var(--color-accent)" radius={[0, 3, 3, 0]} name="P95 (ms)" />
+                <Bar dataKey="p95" fill="var(--color-accent)" radius={[0, 3, 3, 0]} name={`${t('common.p95')} (${t('common.ms')})`} />
               </BarChart>
             </ResponsiveContainer>
           </div>

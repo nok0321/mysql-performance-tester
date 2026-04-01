@@ -2,6 +2,7 @@
  * Latency distribution histogram component
  * Extracted from SingleTest.tsx for reuse in ComparisonTest
  */
+import { useTranslation } from 'react-i18next';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer
@@ -13,7 +14,9 @@ interface Props {
 }
 
 export default function HistogramChart({ distribution }: Props) {
-  if (!distribution?.buckets) return <div className="empty-state"><p>分布データなし</p></div>;
+  const { t } = useTranslation();
+
+  if (!distribution?.buckets) return <div className="empty-state"><p>{t('components.distributionNoData')}</p></div>;
   const data = distribution.buckets.map(b => ({ name: `${b.min?.toFixed(0)}ms`, count: b.count }));
   return (
     <ResponsiveContainer width="100%" height={220}>

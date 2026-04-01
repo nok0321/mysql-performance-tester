@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { reportsApi } from '../api/client';
 import DeltaSummaryBar from '../components/DeltaSummaryBar';
 import ComparisonPercentilesTable from '../components/ComparisonPercentilesTable';
@@ -8,6 +9,7 @@ import type {
 } from '../types';
 
 export default function Reports() {
+  const { t } = useTranslation();
   const [reports, setReports] = useState<ReportSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<ReportSummary | null>(null);
@@ -41,10 +43,10 @@ export default function Reports() {
   };
 
   const typeBadge = (type: string) => {
-    if (type === 'comparison') return <span className="badge badge-yellow">A/B</span>;
-    if (type === 'parallel') return <span className="badge badge-blue">並列</span>;
-    if (type === 'batch') return <span className="badge badge-yellow">バッチ</span>;
-    return <span className="badge badge-green">単一</span>;
+    if (type === 'comparison') return <span className="badge badge-yellow">{t('reports.typeComparison')}</span>;
+    if (type === 'parallel') return <span className="badge badge-blue">{t('reports.typeParallel')}</span>;
+    if (type === 'batch') return <span className="badge badge-yellow">{t('reports.typeBatch')}</span>;
+    return <span className="badge badge-green">{t('reports.typeSingle')}</span>;
   };
 
   return (
@@ -52,14 +54,14 @@ export default function Reports() {
 
       {/* Report list */}
       <div>
-        <div className="section-title">📋 レポート一覧</div>
+        <div className="section-title">{`📋 ${t('reports.listTitle')}`}</div>
         {error && <div className="alert alert-error">{error}</div>}
         {loading ? (
           <div className="empty-state"><div className="spinner spinner-lg" /></div>
         ) : reports.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">📋</div>
-            <p>レポートがありません</p>
+            <p>{t('reports.emptyList')}</p>
           </div>
         ) : (
           <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
@@ -88,7 +90,7 @@ export default function Reports() {
         {!selected && (
           <div className="empty-state">
             <div className="empty-icon">📋</div>
-            <p>左のリストからレポートを選択してください</p>
+            <p>{t('reports.emptyDetail')}</p>
           </div>
         )}
 
@@ -112,7 +114,7 @@ export default function Reports() {
                 <div>
                   <div className="card-title">{selected!.testName || selected!.id}</div>
                   <div className="text-xs text-muted">
-                    {selected!.id} | {executionMode === 'sequential' ? 'Sequential' : 'Parallel'}
+                    {selected!.id} | {executionMode === 'sequential' ? t('comparison.sequential') : t('comparison.parallel')}
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -132,10 +134,10 @@ export default function Reports() {
                   <div className="section-title">{testNameA}</div>
                   <div className="card-grid card-grid-4">
                     {[
-                      { label: 'Mean', value: statsA?.basic?.mean, unit: 'ms' },
-                      { label: 'P95', value: statsA?.percentiles?.p95, unit: 'ms' },
-                      { label: 'P99', value: statsA?.percentiles?.p99, unit: 'ms' },
-                      { label: 'CV', value: statsA?.spread?.cv, unit: '%' },
+                      { label: t('common.mean'), value: statsA?.basic?.mean, unit: 'ms' },
+                      { label: t('common.p95'), value: statsA?.percentiles?.p95, unit: 'ms' },
+                      { label: t('common.p99'), value: statsA?.percentiles?.p99, unit: 'ms' },
+                      { label: t('common.cv'), value: statsA?.spread?.cv, unit: '%' },
                     ].map(s => (
                       <div key={s.label} className="stat-card">
                         <div className="stat-label">{s.label}</div>
@@ -148,10 +150,10 @@ export default function Reports() {
                   <div className="section-title">{testNameB}</div>
                   <div className="card-grid card-grid-4">
                     {[
-                      { label: 'Mean', value: statsB?.basic?.mean, unit: 'ms' },
-                      { label: 'P95', value: statsB?.percentiles?.p95, unit: 'ms' },
-                      { label: 'P99', value: statsB?.percentiles?.p99, unit: 'ms' },
-                      { label: 'CV', value: statsB?.spread?.cv, unit: '%' },
+                      { label: t('common.mean'), value: statsB?.basic?.mean, unit: 'ms' },
+                      { label: t('common.p95'), value: statsB?.percentiles?.p95, unit: 'ms' },
+                      { label: t('common.p99'), value: statsB?.percentiles?.p99, unit: 'ms' },
+                      { label: t('common.cv'), value: statsB?.spread?.cv, unit: '%' },
                     ].map(s => (
                       <div key={s.label} className="stat-card">
                         <div className="stat-label">{s.label}</div>
@@ -163,7 +165,7 @@ export default function Reports() {
               </div>
 
               <div className="card">
-                <div className="section-title">Percentile Comparison</div>
+                <div className="section-title">{t('reports.percentileComparison')}</div>
                 <ComparisonPercentilesTable
                   percentilesA={statsA?.percentiles}
                   percentilesB={statsB?.percentiles}
@@ -199,10 +201,10 @@ export default function Reports() {
                 <>
                   <div className="card-grid card-grid-4 mb-4">
                     {[
-                      { label: '平均', value: stats.basic?.mean, unit: 'ms' },
-                      { label: 'P95', value: stats.percentiles?.p95, unit: 'ms' },
-                      { label: 'P99', value: stats.percentiles?.p99, unit: 'ms' },
-                      { label: 'CV', value: stats.spread?.cv, unit: '%' },
+                      { label: t('common.mean'), value: stats.basic?.mean, unit: 'ms' },
+                      { label: t('common.p95'), value: stats.percentiles?.p95, unit: 'ms' },
+                      { label: t('common.p99'), value: stats.percentiles?.p99, unit: 'ms' },
+                      { label: t('common.cv'), value: stats.spread?.cv, unit: '%' },
                     ].map(s => (
                       <div key={s.label} className="stat-card">
                         <div className="stat-label">{s.label}</div>
@@ -212,10 +214,10 @@ export default function Reports() {
                   </div>
 
                   <div className="card">
-                    <div className="section-title">パーセンタイル詳細</div>
+                    <div className="section-title">{t('reports.percentileDetail')}</div>
                     <div className="table-wrap">
                       <table>
-                        <thead><tr><th>パーセンタイル</th><th>値 (ms)</th></tr></thead>
+                        <thead><tr><th>{t('reports.percentileColumn')}</th><th>{t('reports.valueColumn')}</th></tr></thead>
                         <tbody>
                           {Object.entries(stats.percentiles || {}).map(([k, v]) => (
                             <tr key={k}><td>{k.toUpperCase()}</td><td className="font-mono">{v}</td></tr>
@@ -230,7 +232,7 @@ export default function Reports() {
               {/* Parallel test results */}
               {detail.results && !Array.isArray(detail.results) && (
                 <div className="mt-4">
-                  <div className="section-title mb-4">⚡ 並列テスト結果</div>
+                  <div className="section-title mb-4">{`⚡ ${t('reports.parallelResults')}`}</div>
                   {Object.entries(detail.results as ParallelResults).map(([strategy, data]) => {
                     const m = data?.metrics;
                     if (!m) return null;
@@ -240,17 +242,17 @@ export default function Reports() {
                       <div key={strategy} className="card mb-4 fade-in">
                         {/* Strategy summary */}
                         <div className="card-header">
-                          <div className="card-title">⚡ 戦略: {strategy}</div>
+                          <div className="card-title">{`⚡ ${t('common.strategy')}: ${strategy}`}</div>
                           <span className={`badge ${parseFloat(m.queries?.successRate ?? '0') >= 90 ? 'badge-green' : parseFloat(m.queries?.successRate ?? '0') >= 50 ? 'badge-yellow' : 'badge-red'}`}>
-                            成功率 {m.queries?.successRate}
+                            {`${t('common.successRate')} ${m.queries?.successRate}`}
                           </span>
                         </div>
                         <div className="card-grid card-grid-4 mb-4">
                           {[
-                            { label: 'QPS', value: m.throughput?.qps, unit: '/s' },
-                            { label: '総クエリ', value: m.queries?.total, unit: '件' },
-                            { label: 'P95', value: m.latency?.percentiles?.p95, unit: 'ms' },
-                            { label: '実行時間', value: m.duration?.seconds?.toFixed(3), unit: 's' },
+                            { label: t('common.qps'), value: m.throughput?.qps, unit: '/s' },
+                            { label: t('common.totalQueries'), value: m.queries?.total, unit: t('common.items') },
+                            { label: t('common.p95'), value: m.latency?.percentiles?.p95, unit: 'ms' },
+                            { label: t('common.duration'), value: m.duration?.seconds?.toFixed(3), unit: 's' },
                           ].map(s => (
                             <div key={s.label} className="stat-card">
                               <div className="stat-label">{s.label}</div>
@@ -263,22 +265,22 @@ export default function Reports() {
                         {fileEntries.length > 0 && (
                           <>
                             <div style={{ fontSize: 'var(--text-xs)', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-muted)', marginBottom: 'var(--space-2)' }}>
-                              📄 SQL ファイル別内訳
+                              {`📄 ${t('reports.fileBreakdown')}`}
                             </div>
                             <div className="table-wrap">
                               <table>
                                 <thead>
                                   <tr>
-                                    <th>ファイル名</th>
-                                    <th style={{ textAlign: 'right' }}>成功</th>
-                                    <th style={{ textAlign: 'right' }}>失敗</th>
-                                    <th style={{ textAlign: 'right' }}>成功率</th>
-                                    <th style={{ textAlign: 'right' }}>平均 (ms)</th>
+                                    <th>{t('common.fileName')}</th>
+                                    <th style={{ textAlign: 'right' }}>{t('common.success')}</th>
+                                    <th style={{ textAlign: 'right' }}>{t('common.failure')}</th>
+                                    <th style={{ textAlign: 'right' }}>{t('common.successRate')}</th>
+                                    <th style={{ textAlign: 'right' }}>{`${t('common.mean')} (ms)`}</th>
                                     <th style={{ textAlign: 'right' }}>P50 (ms)</th>
-                                    <th style={{ textAlign: 'right', color: 'var(--color-accent)' }}>P95 (ms)</th>
-                                    <th style={{ textAlign: 'right' }}>P99 (ms)</th>
-                                    <th style={{ textAlign: 'right' }}>最小 (ms)</th>
-                                    <th style={{ textAlign: 'right' }}>最大 (ms)</th>
+                                    <th style={{ textAlign: 'right', color: 'var(--color-accent)' }}>{`${t('common.p95')} (ms)`}</th>
+                                    <th style={{ textAlign: 'right' }}>{`${t('common.p99')} (ms)`}</th>
+                                    <th style={{ textAlign: 'right' }}>{`${t('common.min')} (ms)`}</th>
+                                    <th style={{ textAlign: 'right' }}>{`${t('common.max')} (ms)`}</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -304,7 +306,7 @@ export default function Reports() {
 
                         {fileEntries.length === 0 && (
                           <div className="text-xs text-muted" style={{ marginTop: 'var(--space-2)' }}>
-                            📄 SQL ファイル別内訳はありません（再テストで取得できます）
+                            {`📄 ${t('reports.noFileBreakdown')}`}
                           </div>
                         )}
                       </div>

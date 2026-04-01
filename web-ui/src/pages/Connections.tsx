@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { connectionsApi } from '../api/client';
 import type { Connection, ConnectionFormData, ConnectionTestResult } from '../types';
 
@@ -9,6 +10,7 @@ interface ConnectionFormProps {
 }
 
 function ConnectionForm({ initial, onSave, onCancel }: ConnectionFormProps) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<ConnectionFormData>(initial || {
     name: '', host: 'localhost', port: 3306,
     database: '', user: 'root', password: '', poolSize: 10
@@ -19,53 +21,53 @@ function ConnectionForm({ initial, onSave, onCancel }: ConnectionFormProps) {
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal fade-in" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3 className="modal-title">{initial ? '接続を編集' : '接続を追加'}</h3>
+          <h3 className="modal-title">{initial ? t('connections.editTitle') : t('connections.addTitle')}</h3>
           <button className="modal-close" onClick={onCancel}>×</button>
         </div>
 
         <div className="form-group">
-          <label className="form-label">接続名</label>
+          <label className="form-label">{t('connections.name')}</label>
           <input className="form-input" placeholder="My MySQL Server"
             value={form.name} onChange={e => set('name', e.target.value)} />
         </div>
         <div className="form-row">
           <div className="form-group">
-            <label className="form-label">ホスト *</label>
+            <label className="form-label">{t('connections.host')} *</label>
             <input className="form-input" placeholder="localhost"
               value={form.host} onChange={e => set('host', e.target.value)} />
           </div>
           <div className="form-group">
-            <label className="form-label">ポート</label>
+            <label className="form-label">{t('connections.port')}</label>
             <input className="form-input" type="number" placeholder="3306"
               value={form.port} onChange={e => set('port', e.target.value)} />
           </div>
         </div>
         <div className="form-group">
-          <label className="form-label">データベース名 *</label>
+          <label className="form-label">{t('connections.database')} *</label>
           <input className="form-input" placeholder="mydb"
             value={form.database} onChange={e => set('database', e.target.value)} />
         </div>
         <div className="form-row">
           <div className="form-group">
-            <label className="form-label">ユーザー *</label>
+            <label className="form-label">{t('connections.user')} *</label>
             <input className="form-input" placeholder="root"
               value={form.user} onChange={e => set('user', e.target.value)} />
           </div>
           <div className="form-group">
-            <label className="form-label">パスワード</label>
+            <label className="form-label">{t('connections.password')}</label>
             <input className="form-input" type="password"
               value={form.password} onChange={e => set('password', e.target.value)} />
           </div>
         </div>
         <div className="form-group">
-          <label className="form-label">接続プールサイズ</label>
+          <label className="form-label">{t('connections.poolSize')}</label>
           <input className="form-input" type="number" min="1" max="50"
             value={form.poolSize} onChange={e => set('poolSize', e.target.value)} />
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onCancel}>キャンセル</button>
-          <button className="btn btn-primary" onClick={() => onSave(form)}>保存</button>
+          <button className="btn btn-secondary" onClick={onCancel}>{t('common.cancel')}</button>
+          <button className="btn btn-primary" onClick={() => onSave(form)}>{t('common.save')}</button>
         </div>
       </div>
     </div>
@@ -73,6 +75,7 @@ function ConnectionForm({ initial, onSave, onCancel }: ConnectionFormProps) {
 }
 
 export default function Connections() {
+  const { t } = useTranslation();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -105,7 +108,7 @@ export default function Connections() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('この接続を削除しますか？')) return;
+    if (!confirm(t('connections.confirmDelete'))) return;
     try { await connectionsApi.remove(id); load(); }
     catch (e) { setError((e as Error).message); }
   };
@@ -124,11 +127,11 @@ export default function Connections() {
     <div>
       <div className="page-header flex items-center justify-between">
         <div>
-          <h2>接続管理</h2>
-          <p>MySQL 接続先を登録・管理します</p>
+          <h2>{t('connections.title')}</h2>
+          <p>{t('connections.subtitle')}</p>
         </div>
         <button className="btn btn-primary" onClick={() => { setShowForm(true); setEditTarget(null); }}>
-          + 接続を追加
+          + {t('connections.addButton')}
         </button>
       </div>
 
@@ -139,7 +142,7 @@ export default function Connections() {
       ) : connections.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">🔌</div>
-          <p>接続が登録されていません。「接続を追加」から始めてください。</p>
+          <p>{t('connections.emptyState')}</p>
         </div>
       ) : (
         <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
@@ -158,11 +161,11 @@ export default function Connections() {
                     <button className="btn btn-secondary btn-sm"
                       onClick={() => handleTest(conn.id)}
                       disabled={tr?.loading}>
-                      {tr?.loading ? <span className="spinner" /> : '🔍'} 疎通確認
+                      {tr?.loading ? <span className="spinner" /> : '🔍'} {t('connections.testButton')}
                     </button>
                     <button className="btn btn-secondary btn-sm"
                       onClick={() => { setEditTarget(conn); setShowForm(true); }}>
-                      ✏ 編集
+                      ✏ {t('common.edit')}
                     </button>
                     <button className="btn btn-danger btn-sm"
                       onClick={() => handleDelete(conn.id)}>
@@ -173,14 +176,14 @@ export default function Connections() {
 
                 <div className="flex gap-4 text-sm text-muted">
                   <span>👤 {conn.user}</span>
-                  <span>🔢 Pool: {conn.poolSize}</span>
+                  <span>🔢 {t('connections.pool', { size: conn.poolSize })}</span>
                 </div>
 
                 {tr && !tr.loading && (
                   <div className={`alert mt-4 ${tr.ok ? 'alert-success' : 'alert-error'}`}>
                     {tr.ok
-                      ? `✅ 接続成功 — MySQL ${tr.serverVersion} | EXPLAIN ANALYZE: ${tr.supportsExplainAnalyze ? '対応' : '未対応'}`
-                      : `❌ 接続失敗: ${tr.error}`
+                      ? `✅ ${t('connections.testSuccess', { version: tr.serverVersion, support: tr.supportsExplainAnalyze ? t('connections.explainSupported') : t('connections.explainNotSupported') })}`
+                      : `❌ ${t('connections.testFail', { error: tr.error })}`
                     }
                   </div>
                 )}

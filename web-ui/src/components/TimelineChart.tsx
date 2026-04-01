@@ -2,6 +2,7 @@
  * TimelineChart - Line chart showing query metrics over time
  * with event annotations (e.g., index added) as reference lines
  */
+import { useTranslation } from 'react-i18next';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ReferenceLine, ResponsiveContainer,
@@ -31,8 +32,10 @@ function formatDate(iso: string): string {
 }
 
 export default function TimelineChart({ entries, events }: Props) {
+  const { t } = useTranslation();
+
   if (entries.length === 0) {
-    return <div className="empty-state"><p>履歴データがありません</p></div>;
+    return <div className="empty-state"><p>{t('components.timelineNoData')}</p></div>;
   }
 
   const data = entries.map(e => ({

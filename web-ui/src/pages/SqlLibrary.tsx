@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { sqlApi } from '../api/client';
 import type { SqlItem, SqlFormData } from '../types';
 
@@ -11,6 +12,7 @@ interface SqlFormProps {
 }
 
 function SqlForm({ initial, onSave, onCancel }: SqlFormProps) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<SqlFormData>(initial || {
     name: '', sql: '', category: 'SELECT', description: ''
   });
@@ -20,18 +22,18 @@ function SqlForm({ initial, onSave, onCancel }: SqlFormProps) {
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal fade-in" style={{ maxWidth: 680 }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3 className="modal-title">{initial ? 'SQL を編集' : 'SQL を追加'}</h3>
+          <h3 className="modal-title">{initial ? t('sqlLibrary.editTitle') : t('sqlLibrary.addTitle')}</h3>
           <button className="modal-close" onClick={onCancel}>×</button>
         </div>
 
         <div className="form-row">
           <div className="form-group">
-            <label className="form-label">名前</label>
-            <input className="form-input" placeholder="ユーザー検索クエリ"
+            <label className="form-label">{t('sqlLibrary.name')}</label>
+            <input className="form-input" placeholder={t('sqlLibrary.namePlaceholder')}
               value={form.name} onChange={e => set('name', e.target.value)} />
           </div>
           <div className="form-group">
-            <label className="form-label">カテゴリ</label>
+            <label className="form-label">{t('sqlLibrary.category')}</label>
             <select className="form-select" value={form.category} onChange={e => set('category', e.target.value)}>
               {CATEGORIES.map(c => <option key={c}>{c}</option>)}
             </select>
@@ -39,21 +41,21 @@ function SqlForm({ initial, onSave, onCancel }: SqlFormProps) {
         </div>
 
         <div className="form-group">
-          <label className="form-label">SQL *</label>
+          <label className="form-label">{t('sqlLibrary.sql')} *</label>
           <textarea className="form-textarea" rows={8}
             placeholder="SELECT * FROM users WHERE id = 1;"
             value={form.sql} onChange={e => set('sql', e.target.value)} />
         </div>
 
         <div className="form-group">
-          <label className="form-label">説明（任意）</label>
-          <input className="form-input" placeholder="このクエリの目的..."
+          <label className="form-label">{t('sqlLibrary.description')}</label>
+          <input className="form-input" placeholder={t('sqlLibrary.descPlaceholder')}
             value={form.description} onChange={e => set('description', e.target.value)} />
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onCancel}>キャンセル</button>
-          <button className="btn btn-primary" onClick={() => onSave(form)}>保存</button>
+          <button className="btn btn-secondary" onClick={onCancel}>{t('common.cancel')}</button>
+          <button className="btn btn-primary" onClick={() => onSave(form)}>{t('common.save')}</button>
         </div>
       </div>
     </div>
@@ -67,6 +69,7 @@ interface SqlCardProps {
 }
 
 function SqlCard({ item, onEdit, onDelete }: SqlCardProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -83,7 +86,7 @@ function SqlCard({ item, onEdit, onDelete }: SqlCardProps) {
         </div>
         <div className="flex gap-2" style={{ flexShrink: 0 }}>
           <button className="btn btn-secondary btn-sm" onClick={() => setExpanded(e => !e)}>
-            {expanded ? '▲ 閉じる' : '▼ SQL 表示'}
+            {expanded ? `▲ ${t('sqlLibrary.hideSql')}` : `▼ ${t('sqlLibrary.showSql')}`}
           </button>
           <button className="btn btn-secondary btn-sm" onClick={() => onEdit(item)}>✏</button>
           <button className="btn btn-danger btn-sm" onClick={() => onDelete(item.id)}>🗑</button>
@@ -103,6 +106,7 @@ function SqlCard({ item, onEdit, onDelete }: SqlCardProps) {
 }
 
 export default function SqlLibrary() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<SqlItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -133,7 +137,7 @@ export default function SqlLibrary() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('この SQL を削除しますか？')) return;
+    if (!confirm(t('sqlLibrary.confirmDelete'))) return;
     try { await sqlApi.remove(id); load(); }
     catch (e) { setError((e as Error).message); }
   };
@@ -142,11 +146,11 @@ export default function SqlLibrary() {
     <div>
       <div className="page-header flex items-center justify-between">
         <div>
-          <h2>SQL ライブラリ</h2>
-          <p>テストに使用する SQL を登録・管理します</p>
+          <h2>{t('sqlLibrary.title')}</h2>
+          <p>{t('sqlLibrary.subtitle')}</p>
         </div>
         <button className="btn btn-primary" onClick={() => { setShowForm(true); setEditTarget(null); }}>
-          + SQL を追加
+          + {t('sqlLibrary.addButton')}
         </button>
       </div>
 
@@ -156,14 +160,14 @@ export default function SqlLibrary() {
       <div className="card mb-4">
         <div className="flex gap-3 items-center">
           <input className="form-input" style={{ maxWidth: 260 }}
-            placeholder="🔍 キーワード検索..."
+            placeholder={`🔍 ${t('sqlLibrary.searchPlaceholder')}`}
             value={keyword} onChange={e => setKeyword(e.target.value)} />
           <select className="form-select" style={{ maxWidth: 160 }}
             value={filterCat} onChange={e => setFilterCat(e.target.value)}>
-            <option value="">すべてのカテゴリ</option>
+            <option value="">{t('sqlLibrary.allCategories')}</option>
             {CATEGORIES.map(c => <option key={c}>{c}</option>)}
           </select>
-          <span className="text-muted text-sm">{items.length} 件</span>
+          <span className="text-muted text-sm">{items.length} {t('common.items')}</span>
         </div>
       </div>
 
@@ -172,7 +176,7 @@ export default function SqlLibrary() {
       ) : items.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">📝</div>
-          <p>SQL が登録されていません。「SQL を追加」から始めてください。</p>
+          <p>{t('sqlLibrary.emptyState')}</p>
         </div>
       ) : (
         <div style={{ display: 'grid', gap: 'var(--space-4)' }}>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { connectionsApi, sqlApi, testsApi } from '../api/client';
 import StatCardsGrid from '../components/StatCardsGrid';
 import ProgressBar from '../components/ProgressBar';
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export default function SingleTest({ wsMessages, subscribeTestId }: Props) {
+  const { t } = useTranslation();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [sqlItems, setSqlItems] = useState<SqlItem[]>([]);
 
@@ -52,8 +54,8 @@ export default function SingleTest({ wsMessages, subscribeTestId }: Props) {
       ? (sqlItems.find(s => s.id === form.sqlId)?.sql || '')
       : form.sqlText;
 
-    if (!form.connectionId) return dispatch({ type: 'error', data: { message: '接続先を選択してください' } } as RunAction);
-    if (!sqlText.trim()) return dispatch({ type: 'error', data: { message: 'SQL を入力または選択してください' } } as RunAction);
+    if (!form.connectionId) return dispatch({ type: 'error', data: { message: t('singleTest.errorNoConnection') } } as RunAction);
+    if (!sqlText.trim()) return dispatch({ type: 'error', data: { message: t('singleTest.errorNoSql') } } as RunAction);
 
     dispatch({ type: 'start', progress: { phase: 'starting', current: 0, total: form.testIterations, duration: null } });
     setCurrentTestId(null);
@@ -74,28 +76,28 @@ export default function SingleTest({ wsMessages, subscribeTestId }: Props) {
 
       {/* Settings panel */}
       <div className="card">
-        <div className="card-title mb-4">⚙ テスト設定</div>
+        <div className="card-title mb-4">⚙ {t('singleTest.settingsTitle')}</div>
 
         <div className="form-group">
-          <label className="form-label">接続先 *</label>
+          <label className="form-label">{t('singleTest.connection')} *</label>
           <select className="form-select" value={form.connectionId} onChange={e => setF('connectionId', e.target.value)}>
-            <option value="">接続を選択...</option>
+            <option value="">{t('singleTest.selectConnection')}</option>
             {connections.map(c => <option key={c.id} value={c.id}>{c.name || `${c.host}/${c.database}`}</option>)}
           </select>
         </div>
 
         <div className="form-group">
-          <label className="form-label">テスト名</label>
+          <label className="form-label">{t('singleTest.testName')}</label>
           <input className="form-input" value={form.testName} onChange={e => setF('testName', e.target.value)} />
         </div>
 
         <div className="form-group">
-          <label className="form-label">SQL 入力方法</label>
+          <label className="form-label">{t('singleTest.sqlInputMethod')}</label>
           <div className="flex gap-2">
             {(['library', 'direct'] as const).map(m => (
               <button key={m} className={`btn btn-sm ${form.sqlMode === m ? 'btn-accent' : 'btn-secondary'}`}
                 onClick={() => setF('sqlMode', m)}>
-                {m === 'library' ? '📚 ライブラリ' : '✏ 直接入力'}
+                {m === 'library' ? `📚 ${t('singleTest.library')}` : `✏ ${t('singleTest.directInput')}`}
               </button>
             ))}
           </div>
@@ -103,15 +105,15 @@ export default function SingleTest({ wsMessages, subscribeTestId }: Props) {
 
         {form.sqlMode === 'library' ? (
           <div className="form-group">
-            <label className="form-label">SQL を選択</label>
+            <label className="form-label">{t('singleTest.selectSql')}</label>
             <select className="form-select" value={form.sqlId} onChange={e => setF('sqlId', e.target.value)}>
-              <option value="">SQL を選択...</option>
+              <option value="">{t('singleTest.selectSql')}</option>
               {sqlItems.map(s => <option key={s.id} value={s.id}>[{s.category}] {s.name}</option>)}
             </select>
           </div>
         ) : (
           <div className="form-group">
-            <label className="form-label">SQL</label>
+            <label className="form-label">{t('singleTest.sqlLabel')}</label>
             <textarea className="form-textarea" rows={5}
               placeholder="SELECT * FROM users LIMIT 100;"
               value={form.sqlText} onChange={e => setF('sqlText', e.target.value)} />
@@ -119,24 +121,24 @@ export default function SingleTest({ wsMessages, subscribeTestId }: Props) {
         )}
 
         <div className="form-group">
-          <label className="form-label">実行回数</label>
+          <label className="form-label">{t('singleTest.iterations')}</label>
           <input className="form-input" type="number" min="1" max="1000"
             value={form.testIterations} onChange={e => setF('testIterations', Number(e.target.value))} />
         </div>
 
         <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
           {([
-            ['enableWarmup', 'ウォームアップ'],
-            ['removeOutliers', '外れ値除外'],
-            ['enableExplainAnalyze', 'EXPLAIN ANALYZE'],
-            ['enableOptimizerTrace', 'Optimizer Trace'],
-            ['enableBufferPoolMonitoring', 'Buffer Pool 監視'],
-            ['enablePerformanceSchema', 'Performance Schema'],
-          ] as const).map(([key, label]) => (
+            ['enableWarmup', t('singleTest.warmup')],
+            ['removeOutliers', t('singleTest.removeOutliers')],
+            ['enableExplainAnalyze', t('singleTest.explainAnalyze')],
+            ['enableOptimizerTrace', t('singleTest.optimizerTrace')],
+            ['enableBufferPoolMonitoring', t('singleTest.bufferPool')],
+            ['enablePerformanceSchema', t('singleTest.perfSchema')],
+          ] as [string, string][]).map(([key, label]) => (
             <div key={key} className="toggle-row">
               <span className="toggle-label">{label}</span>
               <label className="toggle">
-                <input type="checkbox" checked={form[key] as boolean} onChange={e => setF(key, e.target.checked)} />
+                <input type="checkbox" checked={form[key as keyof SingleTestForm] as boolean} onChange={e => setF(key, e.target.checked)} />
                 <span className="toggle-slider" />
               </label>
             </div>
@@ -145,18 +147,18 @@ export default function SingleTest({ wsMessages, subscribeTestId }: Props) {
 
         {form.removeOutliers && (
           <div className="form-group">
-            <label className="form-label">外れ値検出方式</label>
+            <label className="form-label">{t('singleTest.outlierMethod')}</label>
             <select className="form-select" value={form.outlierMethod} onChange={e => setF('outlierMethod', e.target.value)}>
-              <option value="iqr">IQR 法</option>
-              <option value="zscore">Z スコア法</option>
-              <option value="mad">MAD 法</option>
+              <option value="iqr">{t('singleTest.iqrMethod')}</option>
+              <option value="zscore">{t('singleTest.zscoreMethod')}</option>
+              <option value="mad">{t('singleTest.madMethod')}</option>
             </select>
           </div>
         )}
 
         <button className="btn btn-primary btn-lg" style={{ width: '100%' }}
           onClick={handleRun} disabled={run.runState === 'running'}>
-          {run.runState === 'running' ? <><span className="spinner" /> 測定中...</> : '▶ テスト実行'}
+          {run.runState === 'running' ? <><span className="spinner" /> {t('singleTest.running')}</> : `▶ ${t('singleTest.runButton')}`}
         </button>
 
         {run.errorMsg && <div className="alert alert-error mt-4">⚠ {run.errorMsg}</div>}
@@ -169,11 +171,11 @@ export default function SingleTest({ wsMessages, subscribeTestId }: Props) {
           <ProgressBar
             current={run.progress.current}
             total={run.progress.total}
-            label={run.progress.phase === 'warmup' ? '🔥 ウォームアップ中...' : '📊 測定中...'}
+            label={run.progress.phase === 'warmup' ? `🔥 ${t('singleTest.warmupProgress')}` : `📊 ${t('singleTest.measuringProgress')}`}
           >
             {run.progress.duration != null && (
               <div className="text-muted text-sm" style={{ marginTop: 4 }}>
-                直近: {run.progress.duration?.toFixed(2)} ms
+                {t('singleTest.latestDuration', { duration: run.progress.duration?.toFixed(2) })}
               </div>
             )}
           </ProgressBar>
@@ -182,10 +184,10 @@ export default function SingleTest({ wsMessages, subscribeTestId }: Props) {
         {/* Summary stat cards */}
         {stats && (
           <StatCardsGrid items={[
-            { label: '平均', value: stats.basic?.mean, unit: 'ms' },
-            { label: 'P95', value: stats.percentiles?.p95, unit: 'ms', highlight: true },
-            { label: 'P99', value: stats.percentiles?.p99, unit: 'ms' },
-            { label: '変動係数 (CV)', value: stats.spread?.cv, unit: '%' },
+            { label: t('common.mean'), value: stats.basic?.mean, unit: 'ms' },
+            { label: t('common.p95'), value: stats.percentiles?.p95, unit: 'ms', highlight: true },
+            { label: t('common.p99'), value: stats.percentiles?.p99, unit: 'ms' },
+            { label: t('common.cv'), value: stats.spread?.cv, unit: '%' },
           ]} />
         )}
 
@@ -193,7 +195,7 @@ export default function SingleTest({ wsMessages, subscribeTestId }: Props) {
         {run.result && (
           <div className="card fade-in">
             <div className="tabs">
-              {([['stats', '📊 統計'], ['histogram', '📈 分布'], ['explain', '🔍 EXPLAIN'], ['recommend', '💡 推奨']] as const).map(([id, label]) => (
+              {([['stats', `📊 ${t('singleTest.tabStats')}`], ['histogram', `📈 ${t('singleTest.tabDistribution')}`], ['explain', `🔍 ${t('singleTest.tabExplain')}`], ['recommend', `💡 ${t('singleTest.tabRecommend')}`]] as const).map(([id, label]) => (
                 <button key={id} className={`tab-btn${activeTab === id ? ' active' : ''}`}
                   onClick={() => setActiveTab(id)}>{label}</button>
               ))}
@@ -203,17 +205,17 @@ export default function SingleTest({ wsMessages, subscribeTestId }: Props) {
               <div>
                 <div className="card-grid card-grid-2 mb-4">
                   <div>
-                    <div className="section-title">基本統計</div>
+                    <div className="section-title">{t('singleTest.basicStats')}</div>
                     <div className="table-wrap">
                       <table>
                         <tbody>
                           {([
-                            ['最小', stats?.basic?.min],
-                            ['最大', stats?.basic?.max],
-                            ['平均', stats?.basic?.mean],
-                            ['中央値', stats?.basic?.median],
-                            ['標準偏差', stats?.spread?.stdDev],
-                            ['IQR', stats?.spread?.iqr],
+                            [t('common.min'), stats?.basic?.min],
+                            [t('common.max'), stats?.basic?.max],
+                            [t('common.mean'), stats?.basic?.mean],
+                            [t('common.median'), stats?.basic?.median],
+                            [t('common.stdDev'), stats?.spread?.stdDev],
+                            [t('common.iqr'), stats?.spread?.iqr],
                           ] as [string, number | undefined][]).map(([l, v]) => (
                             <tr key={l}><td className="text-muted">{l}</td><td className="font-mono">{v ?? '-'} ms</td></tr>
                           ))}
@@ -222,23 +224,23 @@ export default function SingleTest({ wsMessages, subscribeTestId }: Props) {
                     </div>
                   </div>
                   <div>
-                    <div className="section-title">実行回数</div>
+                    <div className="section-title">{t('singleTest.executionCount')}</div>
                     <div className="table-wrap">
                       <table>
                         <tbody>
                           {([
-                            ['合計', stats?.count?.total],
-                            ['使用', stats?.count?.included],
-                            ['外れ値', stats?.count?.outliers],
+                            [t('singleTest.total'), stats?.count?.total],
+                            [t('singleTest.used'), stats?.count?.included],
+                            [t('singleTest.outliers'), stats?.count?.outliers],
                           ] as [string, number | undefined][]).map(([l, v]) => (
-                            <tr key={l}><td className="text-muted">{l}</td><td className="font-mono">{v ?? '-'} 回</td></tr>
+                            <tr key={l}><td className="text-muted">{l}</td><td className="font-mono">{v ?? '-'} {t('common.times')}</td></tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
                   </div>
                 </div>
-                <div className="section-title">パーセンタイル</div>
+                <div className="section-title">{t('common.percentile')}</div>
                 <PercentilesTable percentiles={stats?.percentiles} />
               </div>
             )}
@@ -260,7 +262,7 @@ export default function SingleTest({ wsMessages, subscribeTestId }: Props) {
         {!run.result && !run.runState && (
           <div className="empty-state">
             <div className="empty-icon">▶</div>
-            <p>左のパネルで設定してテストを実行してください</p>
+            <p>{t('singleTest.emptyState')}</p>
           </div>
         )}
       </div>

@@ -2,6 +2,7 @@
  * Reusable percentiles table component
  * Displays P1 through P99.9 latency values
  */
+import { useTranslation } from 'react-i18next';
 import type { Percentiles } from '../types';
 
 interface Props {
@@ -9,6 +10,8 @@ interface Props {
 }
 
 export default function PercentilesTable({ percentiles }: Props) {
+  const { t } = useTranslation();
+
   if (!percentiles) return null;
 
   const rows: [string, number | undefined][] = [
@@ -16,7 +19,7 @@ export default function PercentilesTable({ percentiles }: Props) {
     ['P5', percentiles.p05],
     ['P10', percentiles.p10],
     ['P25', percentiles.p25],
-    ['P50 (中央値)', percentiles.p50],
+    [t('components.p50Median'), percentiles.p50],
     ['P75', percentiles.p75],
     ['P90', percentiles.p90],
     ['P95 ⭐', percentiles.p95],
@@ -29,8 +32,8 @@ export default function PercentilesTable({ percentiles }: Props) {
       <table>
         <thead>
           <tr>
-            <th>パーセンタイル</th>
-            <th>レイテンシ (ms)</th>
+            <th>{t('common.percentile')}</th>
+            <th>{t('common.latencyMs')}</th>
           </tr>
         </thead>
         <tbody>
