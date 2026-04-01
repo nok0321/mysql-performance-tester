@@ -32,8 +32,8 @@ export default function PercentilesTable({ percentiles }: Props) {
       <table>
         <thead>
           <tr>
-            <th>{t('common.percentile')}</th>
-            <th>{t('common.latencyMs')}</th>
+            <th scope="col">{t('common.percentile')}</th>
+            <th scope="col">{t('common.latencyMs')}</th>
           </tr>
         </thead>
         <tbody>

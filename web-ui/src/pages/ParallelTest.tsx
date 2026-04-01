@@ -75,27 +75,27 @@ export default function ParallelTest({ wsMessages, subscribeTestId }: Props) {
         <div className="card-title mb-4">⚡ {t('parallelTest.settingsTitle')}</div>
 
         <div className="form-group">
-          <label className="form-label">{t('singleTest.connection')} *</label>
-          <select className="form-select" value={form.connectionId} onChange={e => setF('connectionId', e.target.value)}>
+          <label className="form-label" htmlFor="pt-connection">{t('singleTest.connection')} *</label>
+          <select className="form-select" id="pt-connection" aria-required="true" value={form.connectionId} onChange={e => setF('connectionId', e.target.value)}>
             <option value="">{t('common.select')}</option>
             {connections.map(c => <option key={c.id} value={c.id}>{c.name || c.host}</option>)}
           </select>
         </div>
 
         <div className="form-group">
-          <label className="form-label">{t('parallelTest.testName')}</label>
-          <input className="form-input" value={form.testName} onChange={e => setF('testName', e.target.value)} />
+          <label className="form-label" htmlFor="pt-name">{t('parallelTest.testName')}</label>
+          <input className="form-input" id="pt-name" value={form.testName} onChange={e => setF('testName', e.target.value)} />
         </div>
 
         <div className="form-row">
           <div className="form-group">
-            <label className="form-label">{t('parallelTest.threads')}</label>
-            <input className="form-input" type="number" min="1" max="100"
+            <label className="form-label" htmlFor="pt-threads">{t('parallelTest.threads')}</label>
+            <input className="form-input" id="pt-threads" type="number" min="1" max="100"
               value={form.parallelThreads} onChange={e => setF('parallelThreads', Number(e.target.value))} />
           </div>
           <div className="form-group">
-            <label className="form-label">{t('parallelTest.iterationsPerThread')}</label>
-            <input className="form-input" type="number" min="1"
+            <label className="form-label" htmlFor="pt-iterations">{t('parallelTest.iterationsPerThread')}</label>
+            <input className="form-input" id="pt-iterations" type="number" min="1"
               value={form.testIterations} onChange={e => setF('testIterations', Number(e.target.value))} />
           </div>
         </div>
@@ -116,7 +116,7 @@ export default function ParallelTest({ wsMessages, subscribeTestId }: Props) {
 
           {sqlMode === 'directory' && (
             <>
-              <input className="form-input" placeholder="./parallel"
+              <input className="form-input" id="pt-directory" placeholder="./parallel"
                 value={form.parallelDirectory} onChange={e => setF('parallelDirectory', e.target.value)} />
               <div className="text-xs text-muted" style={{ marginTop: 4 }}>
                 {t('parallelTest.dirHint')}

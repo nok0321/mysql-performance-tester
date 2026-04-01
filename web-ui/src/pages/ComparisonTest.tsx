@@ -183,8 +183,8 @@ export default function ComparisonTest({ wsMessages, subscribeTestId }: Props) {
         <div className="card-title mb-4">{t('comparison.settingsTitle')}</div>
 
         <div className="form-group">
-          <label className="form-label">{t('singleTest.connection')} *</label>
-          <select className="form-select" value={form.connectionId} onChange={e => setF('connectionId', e.target.value)}>
+          <label className="form-label" htmlFor="ct-connection">{t('singleTest.connection')} *</label>
+          <select className="form-select" id="ct-connection" aria-required="true" value={form.connectionId} onChange={e => setF('connectionId', e.target.value)}>
             <option value="">{t('singleTest.selectConnection')}</option>
             {connections.map(c => <option key={c.id} value={c.id}>{c.name || `${c.host}/${c.database}`}</option>)}
           </select>
@@ -212,8 +212,8 @@ export default function ComparisonTest({ wsMessages, subscribeTestId }: Props) {
         {renderSqlInput('B')}
 
         <div className="form-group">
-          <label className="form-label">{t('singleTest.iterations')}</label>
-          <input className="form-input" type="number" min="1" max="1000"
+          <label className="form-label" htmlFor="ct-iterations">{t('singleTest.iterations')}</label>
+          <input className="form-input" id="ct-iterations" type="number" min="1" max="1000"
             value={form.testIterations} onChange={e => setF('testIterations', Number(e.target.value))} />
         </div>
 
@@ -238,8 +238,8 @@ export default function ComparisonTest({ wsMessages, subscribeTestId }: Props) {
 
         {form.removeOutliers && (
           <div className="form-group">
-            <label className="form-label">{t('comparison.outlierMethod')}</label>
-            <select className="form-select" value={form.outlierMethod} onChange={e => setF('outlierMethod', e.target.value)}>
+            <label className="form-label" htmlFor="ct-outlier">{t('comparison.outlierMethod')}</label>
+            <select className="form-select" id="ct-outlier" value={form.outlierMethod} onChange={e => setF('outlierMethod', e.target.value)}>
               <option value="iqr">{t('singleTest.iqrMethod')}</option>
               <option value="zscore">{t('singleTest.zscoreMethod')}</option>
               <option value="mad">{t('singleTest.madMethod')}</option>
@@ -316,7 +316,7 @@ export default function ComparisonTest({ wsMessages, subscribeTestId }: Props) {
                 ['recommend', t('comparison.tabRecommend')],
               ] as [string, string][]).map(([id, label]) => (
                 <button key={id} className={`tab-btn${activeTab === id ? ' active' : ''}`}
-                  onClick={() => setActiveTab(id)}>{label}</button>
+                  aria-label={label} onClick={() => setActiveTab(id)}>{label}</button>
               ))}
             </div>
 

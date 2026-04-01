@@ -190,10 +190,10 @@ export default function QueryHistory() {
                   <table style={{ width: '100%', fontSize: 'var(--text-xs)' }}>
                     <thead>
                       <tr>
-                        <th style={{ textAlign: 'left', padding: '4px 8px' }}>{t('history.eventLabel')}</th>
-                        <th style={{ textAlign: 'left', padding: '4px 8px' }}>{t('history.eventType')}</th>
-                        <th style={{ textAlign: 'left', padding: '4px 8px' }}>{t('history.eventTimestamp')}</th>
-                        <th style={{ padding: '4px 8px' }}></th>
+                        <th scope="col" style={{ textAlign: 'left', padding: '4px 8px' }}>{t('history.eventLabel')}</th>
+                        <th scope="col" style={{ textAlign: 'left', padding: '4px 8px' }}>{t('history.eventType')}</th>
+                        <th scope="col" style={{ textAlign: 'left', padding: '4px 8px' }}>{t('history.eventTimestamp')}</th>
+                        <th scope="col" style={{ padding: '4px 8px' }}></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -209,6 +209,7 @@ export default function QueryHistory() {
                               className="btn btn-sm"
                               style={{ fontSize: 'var(--text-xs)', padding: '2px 8px' }}
                               onClick={() => handleDeleteEvent(ev.id)}
+                              aria-label={`${t('common.delete')} ${ev.label}`}
                             >
                               {t('common.delete')}
                             </button>
@@ -228,8 +229,8 @@ export default function QueryHistory() {
                 <div className="section-title">{t('history.beforeAfter')}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 'var(--space-2)', alignItems: 'end', marginBottom: 'var(--space-3)' }}>
                   <div>
-                    <label className="form-label">{t('history.before')}</label>
-                    <select className="form-input" value={beforeId} onChange={e => setBeforeId(e.target.value)}>
+                    <label className="form-label" htmlFor="qh-before">{t('history.before')}</label>
+                    <select className="form-input" id="qh-before" value={beforeId} onChange={e => setBeforeId(e.target.value)}>
                       <option value="">-- {t('common.select')} --</option>
                       {timeline.entries.map(e => (
                         <option key={e.testId} value={e.testId}>
@@ -239,8 +240,8 @@ export default function QueryHistory() {
                     </select>
                   </div>
                   <div>
-                    <label className="form-label">{t('history.after')}</label>
-                    <select className="form-input" value={afterId} onChange={e => setAfterId(e.target.value)}>
+                    <label className="form-label" htmlFor="qh-after">{t('history.after')}</label>
+                    <select className="form-input" id="qh-after" value={afterId} onChange={e => setAfterId(e.target.value)}>
                       <option value="">-- {t('common.select')} --</option>
                       {timeline.entries.map(e => (
                         <option key={e.testId} value={e.testId}>

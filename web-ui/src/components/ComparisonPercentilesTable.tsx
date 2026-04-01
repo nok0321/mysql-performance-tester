@@ -38,10 +38,10 @@ export default function ComparisonPercentilesTable({ percentilesA, percentilesB,
       <table>
         <thead>
           <tr>
-            <th style={{ textAlign: 'right' }}>{nameA} (ms)</th>
-            <th style={{ textAlign: 'center' }}>{t('common.percentile')}</th>
-            <th style={{ textAlign: 'left' }}>{nameB} (ms)</th>
-            <th style={{ textAlign: 'right' }}>{t('components.deltaMs')}</th>
+            <th scope="col" style={{ textAlign: 'right' }}>{nameA} (ms)</th>
+            <th scope="col" style={{ textAlign: 'center' }}>{t('common.percentile')}</th>
+            <th scope="col" style={{ textAlign: 'left' }}>{nameB} (ms)</th>
+            <th scope="col" style={{ textAlign: 'right' }}>{t('components.deltaMs')}</th>
           </tr>
         </thead>
         <tbody>

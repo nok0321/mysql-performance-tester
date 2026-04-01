@@ -79,16 +79,16 @@ export default function SingleTest({ wsMessages, subscribeTestId }: Props) {
         <div className="card-title mb-4">⚙ {t('singleTest.settingsTitle')}</div>
 
         <div className="form-group">
-          <label className="form-label">{t('singleTest.connection')} *</label>
-          <select className="form-select" value={form.connectionId} onChange={e => setF('connectionId', e.target.value)}>
+          <label className="form-label" htmlFor="st-connection">{t('singleTest.connection')} *</label>
+          <select className="form-select" id="st-connection" aria-required="true" value={form.connectionId} onChange={e => setF('connectionId', e.target.value)}>
             <option value="">{t('singleTest.selectConnection')}</option>
             {connections.map(c => <option key={c.id} value={c.id}>{c.name || `${c.host}/${c.database}`}</option>)}
           </select>
         </div>
 
         <div className="form-group">
-          <label className="form-label">{t('singleTest.testName')}</label>
-          <input className="form-input" value={form.testName} onChange={e => setF('testName', e.target.value)} />
+          <label className="form-label" htmlFor="st-name">{t('singleTest.testName')}</label>
+          <input className="form-input" id="st-name" value={form.testName} onChange={e => setF('testName', e.target.value)} />
         </div>
 
         <div className="form-group">
@@ -105,24 +105,24 @@ export default function SingleTest({ wsMessages, subscribeTestId }: Props) {
 
         {form.sqlMode === 'library' ? (
           <div className="form-group">
-            <label className="form-label">{t('singleTest.selectSql')}</label>
-            <select className="form-select" value={form.sqlId} onChange={e => setF('sqlId', e.target.value)}>
+            <label className="form-label" htmlFor="st-sql-select">{t('singleTest.selectSql')}</label>
+            <select className="form-select" id="st-sql-select" value={form.sqlId} onChange={e => setF('sqlId', e.target.value)}>
               <option value="">{t('singleTest.selectSql')}</option>
               {sqlItems.map(s => <option key={s.id} value={s.id}>[{s.category}] {s.name}</option>)}
             </select>
           </div>
         ) : (
           <div className="form-group">
-            <label className="form-label">{t('singleTest.sqlLabel')}</label>
-            <textarea className="form-textarea" rows={5}
+            <label className="form-label" htmlFor="st-sql-text">{t('singleTest.sqlLabel')}</label>
+            <textarea className="form-textarea" id="st-sql-text" rows={5}
               placeholder="SELECT * FROM users LIMIT 100;"
               value={form.sqlText} onChange={e => setF('sqlText', e.target.value)} />
           </div>
         )}
 
         <div className="form-group">
-          <label className="form-label">{t('singleTest.iterations')}</label>
-          <input className="form-input" type="number" min="1" max="1000"
+          <label className="form-label" htmlFor="st-iterations">{t('singleTest.iterations')}</label>
+          <input className="form-input" id="st-iterations" type="number" min="1" max="1000"
             value={form.testIterations} onChange={e => setF('testIterations', Number(e.target.value))} />
         </div>
 
@@ -147,8 +147,8 @@ export default function SingleTest({ wsMessages, subscribeTestId }: Props) {
 
         {form.removeOutliers && (
           <div className="form-group">
-            <label className="form-label">{t('singleTest.outlierMethod')}</label>
-            <select className="form-select" value={form.outlierMethod} onChange={e => setF('outlierMethod', e.target.value)}>
+            <label className="form-label" htmlFor="st-outlier">{t('singleTest.outlierMethod')}</label>
+            <select className="form-select" id="st-outlier" value={form.outlierMethod} onChange={e => setF('outlierMethod', e.target.value)}>
               <option value="iqr">{t('singleTest.iqrMethod')}</option>
               <option value="zscore">{t('singleTest.zscoreMethod')}</option>
               <option value="mad">{t('singleTest.madMethod')}</option>
@@ -197,7 +197,7 @@ export default function SingleTest({ wsMessages, subscribeTestId }: Props) {
             <div className="tabs">
               {([['stats', `📊 ${t('singleTest.tabStats')}`], ['histogram', `📈 ${t('singleTest.tabDistribution')}`], ['explain', `🔍 ${t('singleTest.tabExplain')}`], ['recommend', `💡 ${t('singleTest.tabRecommend')}`]] as const).map(([id, label]) => (
                 <button key={id} className={`tab-btn${activeTab === id ? ' active' : ''}`}
-                  onClick={() => setActiveTab(id)}>{label}</button>
+                  aria-label={label} onClick={() => setActiveTab(id)}>{label}</button>
               ))}
             </div>
 
