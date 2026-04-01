@@ -2,6 +2,7 @@
  * EXPLAIN result display component
  * Extracted from SingleTest.tsx for reuse in ComparisonTest
  */
+import { useTranslation } from 'react-i18next';
 import type { ExplainAnalyze } from '../types';
 
 interface Props {
@@ -9,7 +10,9 @@ interface Props {
 }
 
 export default function ExplainPanel({ explain }: Props) {
-  if (!explain) return <div className="empty-state"><p>EXPLAIN データなし（無効またはエラー）</p></div>;
+  const { t } = useTranslation();
+
+  if (!explain) return <div className="empty-state"><p>{t('components.explainNoData')}</p></div>;
   return (
     <div>
       {explain.data != null && (
@@ -17,7 +20,7 @@ export default function ExplainPanel({ explain }: Props) {
       )}
       {explain.analyze?.tree && (
         <>
-          <div className="section-title mt-4">EXPLAIN ANALYZE</div>
+          <div className="section-title mt-4">{t('components.explainAnalyze')}</div>
           <div className="code-block">{explain.analyze.tree}</div>
         </>
       )}

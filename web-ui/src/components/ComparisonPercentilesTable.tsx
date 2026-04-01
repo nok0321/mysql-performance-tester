@@ -1,6 +1,7 @@
 /**
  * ComparisonPercentilesTable - Side-by-side percentile comparison with delta
  */
+import { useTranslation } from 'react-i18next';
 import type { Percentiles } from '../types';
 
 interface Props {
@@ -28,6 +29,8 @@ function fmt(v: number | undefined): string {
 }
 
 export default function ComparisonPercentilesTable({ percentilesA, percentilesB, nameA, nameB }: Props) {
+  const { t } = useTranslation();
+
   if (!percentilesA && !percentilesB) return null;
 
   return (
@@ -36,9 +39,9 @@ export default function ComparisonPercentilesTable({ percentilesA, percentilesB,
         <thead>
           <tr>
             <th style={{ textAlign: 'right' }}>{nameA} (ms)</th>
-            <th style={{ textAlign: 'center' }}>Percentile</th>
+            <th style={{ textAlign: 'center' }}>{t('common.percentile')}</th>
             <th style={{ textAlign: 'left' }}>{nameB} (ms)</th>
-            <th style={{ textAlign: 'right' }}>Delta (ms)</th>
+            <th style={{ textAlign: 'right' }}>{t('components.deltaMs')}</th>
           </tr>
         </thead>
         <tbody>

@@ -1,6 +1,7 @@
 /**
  * DeltaSummaryBar - Shows comparison winner and key delta metrics
  */
+import { useTranslation } from 'react-i18next';
 import type { ComparisonDelta } from '../types';
 
 interface Props {
@@ -24,8 +25,10 @@ function DeltaChip({ label, diff, pct }: { label: string; diff: number; pct: num
 }
 
 export default function DeltaSummaryBar({ delta, nameA, nameB }: Props) {
+  const { t } = useTranslation();
+
   const winnerLabel = delta.winner === 'tie'
-    ? 'TIE'
+    ? t('components.deltaTie')
     : delta.winner === 'A' ? nameA : nameB;
   const winnerColor = delta.winner === 'tie'
     ? 'var(--color-text-muted)'
@@ -40,15 +43,15 @@ export default function DeltaSummaryBar({ delta, nameA, nameB }: Props) {
       alignItems: 'center',
     }}>
       <div>
-        <div className="text-xs text-muted">Winner</div>
+        <div className="text-xs text-muted">{t('components.deltaWinner')}</div>
         <div style={{ fontSize: 'var(--text-lg)', fontWeight: 600, color: winnerColor }}>
           {winnerLabel}
         </div>
         <div className="text-xs text-muted">{delta.summary}</div>
       </div>
-      <DeltaChip label="Mean" diff={delta.meanDiff} pct={delta.meanDiffPercent} />
-      <DeltaChip label="P95" diff={delta.p95Diff} pct={delta.p95DiffPercent} />
-      <DeltaChip label="P99" diff={delta.p99Diff} pct={delta.p99DiffPercent} />
+      <DeltaChip label={t('components.deltaMean')} diff={delta.meanDiff} pct={delta.meanDiffPercent} />
+      <DeltaChip label={t('components.deltaP95')} diff={delta.p95Diff} pct={delta.p95DiffPercent} />
+      <DeltaChip label={t('components.deltaP99')} diff={delta.p99Diff} pct={delta.p99DiffPercent} />
     </div>
   );
 }

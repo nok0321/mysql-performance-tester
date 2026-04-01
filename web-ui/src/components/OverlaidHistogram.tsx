@@ -1,6 +1,7 @@
 /**
  * OverlaidHistogram - Two distributions overlaid on a single bar chart
  */
+import { useTranslation } from 'react-i18next';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
@@ -15,11 +16,12 @@ interface Props {
 }
 
 export default function OverlaidHistogram({ distributionA, distributionB, nameA, nameB }: Props) {
+  const { t } = useTranslation();
   const bucketsA = distributionA?.buckets;
   const bucketsB = distributionB?.buckets;
 
   if (!bucketsA && !bucketsB) {
-    return <div className="empty-state"><p>分布データなし</p></div>;
+    return <div className="empty-state"><p>{t('components.distributionNoData')}</p></div>;
   }
 
   // Build a unified set of bucket labels from both distributions

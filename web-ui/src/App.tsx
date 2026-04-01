@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useWebSocket } from './hooks/useWebSocket';
 import type { WsMessage } from './types';
 
@@ -14,36 +15,49 @@ import Settings from './pages/Settings';
 import QueryHistory from './pages/QueryHistory';
 
 type NavItem =
-  | { section: string; path?: undefined; icon?: undefined; label?: undefined }
-  | { path: string; icon: string; label: string; section?: undefined };
+  | { section: string; path?: undefined; icon?: undefined; labelKey?: undefined }
+  | { path: string; icon: string; labelKey: string; section?: undefined };
 
 const NAV: NavItem[] = [
-  { section: 'Setup' },
-  { path: '/connections', icon: '🔌', label: '接続管理' },
-  { path: '/sql-library', icon: '📝', label: 'SQL ライブラリ' },
-  { section: 'Execute' },
-  { path: '/single-test', icon: '▶', label: '単一テスト' },
-  { path: '/parallel-test', icon: '⚡', label: '並列テスト' },
-  { path: '/comparison', icon: 'AB', label: 'A/B 比較' },
-  { section: 'Insights' },
-  { path: '/reports', icon: '📋', label: 'レポート' },
-  { path: '/analytics', icon: '📈', label: 'アナリティクス' },
-  { path: '/history', icon: '🕐', label: 'クエリ履歴' },
-  { section: 'System' },
-  { path: '/settings', icon: '⚙️', label: '設定' },
+  { section: 'nav.setup' },
+  { path: '/connections', icon: '🔌', labelKey: 'nav.connections' },
+  { path: '/sql-library', icon: '📝', labelKey: 'nav.sqlLibrary' },
+  { section: 'nav.execute' },
+  { path: '/single-test', icon: '▶', labelKey: 'nav.singleTest' },
+  { path: '/parallel-test', icon: '⚡', labelKey: 'nav.parallelTest' },
+  { path: '/comparison', icon: 'AB', labelKey: 'nav.comparison' },
+  { section: 'nav.insights' },
+  { path: '/reports', icon: '📋', labelKey: 'nav.reports' },
+  { path: '/analytics', icon: '📈', labelKey: 'nav.analytics' },
+  { path: '/history', icon: '🕐', labelKey: 'nav.history' },
+  { section: 'nav.system' },
+  { path: '/settings', icon: '⚙️', labelKey: 'nav.settings' },
 ];
 
+const PAGE_META_KEYS: Record<string, string> = {
+  '/connections': 'connections',
+  '/sql-library': 'sqlLibrary',
+  '/single-test': 'singleTest',
+  '/parallel-test': 'parallelTest',
+  '/comparison': 'comparison',
+  '/reports': 'reports',
+  '/analytics': 'analytics',
+  '/history': 'history',
+  '/settings': 'settings',
+};
+
 function Sidebar() {
+  const { t } = useTranslation();
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
-        <h1>⚡ MySQL Perf</h1>
-        <p>Performance Tester</p>
+        <h1>⚡ {t('app.logo')}</h1>
+        <p>{t('app.logoSub')}</p>
       </div>
       <nav className="sidebar-nav">
         {NAV.map((item, i) =>
           item.section ? (
-            <div key={i} className="nav-section-label">{item.section}</div>
+            <div key={i} className="nav-section-label">{t(item.section)}</div>
           ) : (
             <NavLink
               key={item.path}
@@ -51,7 +65,7 @@ function Sidebar() {
               className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
             >
               <span className="nav-icon">{item.icon}</span>
-              {item.label}
+              {t(item.labelKey!)}
             </NavLink>
           )
         )}
@@ -60,30 +74,21 @@ function Sidebar() {
   );
 }
 
-const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
-  '/connections': { title: '接続管理', subtitle: 'MySQL 接続先の登録と疎通確認' },
-  '/sql-library': { title: 'SQL ライブラリ', subtitle: 'テスト用 SQL の登録・管理' },
-  '/single-test': { title: '単一テスト', subtitle: 'ウォームアップ付きクエリ性能測定' },
-  '/parallel-test': { title: '並列テスト', subtitle: '負荷シミュレーション & QPS 計測' },
-  '/comparison': { title: 'A/B 比較テスト', subtitle: '2つのクエリの性能を並べて比較' },
-  '/reports': { title: 'レポート', subtitle: '過去のテスト結果を閲覧・エクスポート' },
-  '/analytics': { title: 'アナリティクス', subtitle: 'トレンド分析と比較' },
-  '/history': { title: 'クエリ履歴', subtitle: '同一クエリの実行履歴と変更効果の可視化' },
-  '/settings': { title: '設定', subtitle: 'デフォルト設定の管理' },
-};
-
 function TopBar({ wsConnected }: { wsConnected: boolean }) {
+  const { t } = useTranslation();
   const location = useLocation();
-  const meta = PAGE_META[location.pathname] || { title: 'MySQL Performance Tester' };
+  const metaKey = PAGE_META_KEYS[location.pathname];
+  const title = metaKey ? t(`pageMeta.${metaKey}.title`) : t('app.defaultTitle');
+  const subtitle = metaKey ? t(`pageMeta.${metaKey}.subtitle`) : undefined;
   return (
     <header className="topbar">
       <div>
-        <div className="topbar-title">{meta.title}</div>
-        {meta.subtitle && <div className="topbar-subtitle">{meta.subtitle}</div>}
+        <div className="topbar-title">{title}</div>
+        {subtitle && <div className="topbar-subtitle">{subtitle}</div>}
       </div>
       <div className="topbar-spacer" />
       <span className={`ws-badge ${wsConnected ? 'connected' : 'disconnected'}`}>
-        {wsConnected ? '● WS Connected' : '○ WS Disconnected'}
+        {wsConnected ? `● ${t('app.wsConnected')}` : `○ ${t('app.wsDisconnected')}`}
       </span>
     </header>
   );

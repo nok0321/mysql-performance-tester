@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { connectionsApi, testsApi, sqlApi as sqlLibraryApi } from '../api/client';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -18,11 +19,12 @@ interface Props {
 }
 
 export default function ParallelTest({ wsMessages, subscribeTestId }: Props) {
+  const { t } = useTranslation();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [sqlSnippets, setSqlSnippets] = useState<SqlItem[]>([]);
   const [form, setForm] = useState<ParallelTestForm>({
     connectionId: '',
-    testName: '並列テスト',
+    testName: t('parallelTest.defaultName'),
     parallelThreads: 10,
     testIterations: 20,
     parallelDirectory: './parallel',
@@ -46,9 +48,9 @@ export default function ParallelTest({ wsMessages, subscribeTestId }: Props) {
   };
 
   const handleRun = async () => {
-    if (!form.connectionId) return dispatch({ type: 'error', data: { message: '接続先を選択してください' } } as RunAction);
+    if (!form.connectionId) return dispatch({ type: 'error', data: { message: t('parallelTest.errorNoConnection') } } as RunAction);
     if (sqlMode === 'library' && selectedSqlIds.length === 0)
-      return dispatch({ type: 'error', data: { message: 'SQL ライブラリから1件以上選択してください' } } as RunAction);
+      return dispatch({ type: 'error', data: { message: t('parallelTest.errorNoSql') } } as RunAction);
 
     dispatch({ type: 'start', progress: { current: 0, total: form.parallelThreads * form.testIterations, duration: null } });
     setCurrentTestId(null);
@@ -70,29 +72,29 @@ export default function ParallelTest({ wsMessages, subscribeTestId }: Props) {
 
       {/* Settings panel */}
       <div className="card">
-        <div className="card-title mb-4">⚡ 並列テスト設定</div>
+        <div className="card-title mb-4">⚡ {t('parallelTest.settingsTitle')}</div>
 
         <div className="form-group">
-          <label className="form-label">接続先 *</label>
+          <label className="form-label">{t('singleTest.connection')} *</label>
           <select className="form-select" value={form.connectionId} onChange={e => setF('connectionId', e.target.value)}>
-            <option value="">選択...</option>
+            <option value="">{t('common.select')}</option>
             {connections.map(c => <option key={c.id} value={c.id}>{c.name || c.host}</option>)}
           </select>
         </div>
 
         <div className="form-group">
-          <label className="form-label">テスト名</label>
+          <label className="form-label">{t('parallelTest.testName')}</label>
           <input className="form-input" value={form.testName} onChange={e => setF('testName', e.target.value)} />
         </div>
 
         <div className="form-row">
           <div className="form-group">
-            <label className="form-label">並列スレッド数</label>
+            <label className="form-label">{t('parallelTest.threads')}</label>
             <input className="form-input" type="number" min="1" max="100"
               value={form.parallelThreads} onChange={e => setF('parallelThreads', Number(e.target.value))} />
           </div>
           <div className="form-group">
-            <label className="form-label">各スレッドの実行回数</label>
+            <label className="form-label">{t('parallelTest.iterationsPerThread')}</label>
             <input className="form-input" type="number" min="1"
               value={form.testIterations} onChange={e => setF('testIterations', Number(e.target.value))} />
           </div>
@@ -100,16 +102,16 @@ export default function ParallelTest({ wsMessages, subscribeTestId }: Props) {
 
         {/* SQL source toggle */}
         <div className="form-group">
-          <label className="form-label">SQL ソース</label>
+          <label className="form-label">{t('parallelTest.sqlSource')}</label>
           <div className="flex gap-2" style={{ marginBottom: 'var(--space-3)' }}>
             <button
               className={`btn btn-sm ${sqlMode === 'directory' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setSqlMode('directory')}
-            >📁 ディレクトリ</button>
+            >📁 {t('parallelTest.directory')}</button>
             <button
               className={`btn btn-sm ${sqlMode === 'library' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setSqlMode('library')}
-            >📚 SQL ライブラリ</button>
+            >📚 {t('parallelTest.library')}</button>
           </div>
 
           {sqlMode === 'directory' && (
@@ -117,7 +119,7 @@ export default function ParallelTest({ wsMessages, subscribeTestId }: Props) {
               <input className="form-input" placeholder="./parallel"
                 value={form.parallelDirectory} onChange={e => setF('parallelDirectory', e.target.value)} />
               <div className="text-xs text-muted" style={{ marginTop: 4 }}>
-                プロジェクト内の相対パスのみ指定可能（絶対パス・ディレクトリ移動は不可）
+                {t('parallelTest.dirHint')}
               </div>
             </>
           )}
@@ -126,7 +128,7 @@ export default function ParallelTest({ wsMessages, subscribeTestId }: Props) {
             <div style={{ border: '1px solid var(--color-border)', borderRadius: 6, maxHeight: 220, overflowY: 'auto', padding: 'var(--space-2)' }}>
               {sqlSnippets.length === 0 ? (
                 <div className="text-xs text-muted" style={{ padding: 8 }}>
-                  SQL ライブラリが空です。先に SQL を登録してください。
+                  {t('parallelTest.libraryEmpty')}
                 </div>
               ) : (
                 sqlSnippets.map(s => (
@@ -148,20 +150,20 @@ export default function ParallelTest({ wsMessages, subscribeTestId }: Props) {
           )}
           {sqlMode === 'library' && selectedSqlIds.length > 0 && (
             <div className="text-xs" style={{ marginTop: 4, color: 'var(--color-accent)' }}>
-              ✓ {selectedSqlIds.length} 件選択中
+              ✓ {t('parallelTest.selectedCount', { count: selectedSqlIds.length })}
             </div>
           )}
         </div>
 
         <button className="btn btn-primary btn-lg" style={{ width: '100%' }}
           onClick={handleRun} disabled={run.runState === 'running'}>
-          {run.runState === 'running' ? <><span className="spinner" /> 実行中...</> : '⚡ 並列テスト実行'}
+          {run.runState === 'running' ? <><span className="spinner" /> {t('parallelTest.running')}</> : `⚡ ${t('parallelTest.runButton')}`}
         </button>
 
         {run.errorMsg && <div className="alert alert-error mt-4">{run.errorMsg}</div>}
 
         <div className="text-xs text-muted mt-4" style={{ marginTop: 'var(--space-4)' }}>
-          総クエリ数: {form.parallelThreads * form.testIterations} 回
+          {t('parallelTest.totalQueries', { count: form.parallelThreads * form.testIterations })}
         </div>
       </div>
 
@@ -171,7 +173,7 @@ export default function ParallelTest({ wsMessages, subscribeTestId }: Props) {
           <ProgressBar
             current={run.progress.current}
             total={run.progress.total}
-            label="⚡ 並列実行中..."
+            label={`⚡ ${t('parallelTest.progressLabel')}`}
           >
             {run.liveData.length > 1 && (
               <ResponsiveContainer width="100%" height={140} style={{ marginTop: 16 }}>
@@ -180,7 +182,7 @@ export default function ParallelTest({ wsMessages, subscribeTestId }: Props) {
                   <XAxis dataKey="t" hide />
                   <YAxis tick={{ fill: 'var(--color-text-muted)', fontSize: 10 }} />
                   <Tooltip contentStyle={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 6 }} />
-                  <Line type="monotone" dataKey="duration" stroke="var(--color-accent)" dot={false} strokeWidth={2} name="レイテンシ (ms)" />
+                  <Line type="monotone" dataKey="duration" stroke="var(--color-accent)" dot={false} strokeWidth={2} name={t('parallelTest.latencyLabel')} />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -197,37 +199,37 @@ export default function ParallelTest({ wsMessages, subscribeTestId }: Props) {
               return (
                 <div key={strategy} className="card mb-4">
                   <div className="card-header">
-                    <div className="card-title">⚡ 戦略: {strategy}</div>
+                    <div className="card-title">⚡ {t('common.strategy')}: {strategy}</div>
                     <span className={`badge ${parseFloat(m.queries?.successRate ?? '0') >= 90 ? 'badge-green' : parseFloat(m.queries?.successRate ?? '0') >= 50 ? 'badge-yellow' : 'badge-red'}`}>
-                      成功率 {m.queries?.successRate}
+                      {t('common.successRate')} {m.queries?.successRate}
                     </span>
                   </div>
                   <StatCardsGrid items={[
-                    { label: 'QPS', value: m.throughput?.qps, unit: '/s' },
-                    { label: '総クエリ', value: m.queries?.total, unit: '件' },
-                    { label: 'P95', value: m.latency?.percentiles?.p95, unit: 'ms' },
-                    { label: '実行時間', value: m.duration?.seconds?.toFixed(3), unit: 's' },
+                    { label: t('common.qps'), value: m.throughput?.qps, unit: '/s' },
+                    { label: t('common.totalQueries'), value: m.queries?.total, unit: t('common.items') },
+                    { label: t('common.p95'), value: m.latency?.percentiles?.p95, unit: 'ms' },
+                    { label: t('common.duration'), value: m.duration?.seconds?.toFixed(3), unit: 's' },
                   ]} />
 
                   {fileEntries.length > 0 && (
                     <>
                       <div className="section-title" style={{ marginBottom: 'var(--space-2)', fontSize: 'var(--text-xs)', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-muted)' }}>
-                        📄 SQL ファイル別内訳
+                        📄 {t('parallelTest.fileBreakdown')}
                       </div>
                       <div className="table-wrap">
                         <table>
                           <thead>
                             <tr>
-                              <th>ファイル名</th>
-                              <th style={{ textAlign: 'right' }}>成功</th>
-                              <th style={{ textAlign: 'right' }}>失敗</th>
-                              <th style={{ textAlign: 'right' }}>成功率</th>
-                              <th style={{ textAlign: 'right' }}>平均 (ms)</th>
+                              <th>{t('common.fileName')}</th>
+                              <th style={{ textAlign: 'right' }}>{t('common.success')}</th>
+                              <th style={{ textAlign: 'right' }}>{t('common.failure')}</th>
+                              <th style={{ textAlign: 'right' }}>{t('common.successRate')}</th>
+                              <th style={{ textAlign: 'right' }}>{t('common.mean')} (ms)</th>
                               <th style={{ textAlign: 'right' }}>P50 (ms)</th>
-                              <th style={{ textAlign: 'right' }}>P95 (ms)</th>
-                              <th style={{ textAlign: 'right' }}>P99 (ms)</th>
-                              <th style={{ textAlign: 'right' }}>最小 (ms)</th>
-                              <th style={{ textAlign: 'right' }}>最大 (ms)</th>
+                              <th style={{ textAlign: 'right' }}>{t('common.p95')} (ms)</th>
+                              <th style={{ textAlign: 'right' }}>{t('common.p99')} (ms)</th>
+                              <th style={{ textAlign: 'right' }}>{t('common.min')} (ms)</th>
+                              <th style={{ textAlign: 'right' }}>{t('common.max')} (ms)</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -261,9 +263,9 @@ export default function ParallelTest({ wsMessages, subscribeTestId }: Props) {
         {!run.results && !run.runState && (
           <div className="empty-state">
             <div className="empty-icon">⚡</div>
-            <p>左のパネルで設定し、並列テストを実行してください</p>
+            <p>{t('parallelTest.emptyState')}</p>
             <p className="text-xs mt-4" style={{ marginTop: 8 }}>
-              事前に <code className="font-mono">parallel/</code> ディレクトリに SQL ファイルを配置してください
+              {t('parallelTest.emptyHint')}
             </p>
           </div>
         )}
