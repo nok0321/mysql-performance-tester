@@ -88,6 +88,19 @@ node setup/02_seed.js
 
 ---
 
+## SQLite ストレージ（Web サーバー内部用）
+
+Web API サーバーは内部データ（接続情報・SQL ライブラリ等）の永続化に SQLite を使用します。
+
+- **better-sqlite3** は `cd web && npm install` で自動的にインストールされます
+- SQLite データベース（`web/data/store.db`）はサーバー初回起動時に自動作成されます
+- 既存の JSON データファイルがある場合、SQLite へ自動マイグレーションされます
+- Web サーバーの内部ストレージに関して、手動でのデータベースセットアップは不要です
+
+> `.gitignore` には `web/data/store.db*` が登録済みです。SQLite データベースファイルはリポジトリに含まれません。
+
+---
+
 ## 起動方法
 
 ### CLI のみ使う場合
