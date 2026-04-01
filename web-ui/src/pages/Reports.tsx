@@ -69,6 +69,8 @@ export default function Reports() {
               <div
                 key={r.id}
                 className="card"
+                role="button"
+                aria-label={r.testName || r.id}
                 style={{ cursor: 'pointer', border: selected?.id === r.id ? '1px solid var(--color-accent)' : undefined }}
                 onClick={() => handleSelect(r)}
               >
@@ -217,7 +219,7 @@ export default function Reports() {
                     <div className="section-title">{t('reports.percentileDetail')}</div>
                     <div className="table-wrap">
                       <table>
-                        <thead><tr><th>{t('reports.percentileColumn')}</th><th>{t('reports.valueColumn')}</th></tr></thead>
+                        <thead><tr><th scope="col">{t('reports.percentileColumn')}</th><th scope="col">{t('reports.valueColumn')}</th></tr></thead>
                         <tbody>
                           {Object.entries(stats.percentiles || {}).map(([k, v]) => (
                             <tr key={k}><td>{k.toUpperCase()}</td><td className="font-mono">{v}</td></tr>
@@ -271,16 +273,16 @@ export default function Reports() {
                               <table>
                                 <thead>
                                   <tr>
-                                    <th>{t('common.fileName')}</th>
-                                    <th style={{ textAlign: 'right' }}>{t('common.success')}</th>
-                                    <th style={{ textAlign: 'right' }}>{t('common.failure')}</th>
-                                    <th style={{ textAlign: 'right' }}>{t('common.successRate')}</th>
-                                    <th style={{ textAlign: 'right' }}>{`${t('common.mean')} (ms)`}</th>
-                                    <th style={{ textAlign: 'right' }}>P50 (ms)</th>
-                                    <th style={{ textAlign: 'right', color: 'var(--color-accent)' }}>{`${t('common.p95')} (ms)`}</th>
-                                    <th style={{ textAlign: 'right' }}>{`${t('common.p99')} (ms)`}</th>
-                                    <th style={{ textAlign: 'right' }}>{`${t('common.min')} (ms)`}</th>
-                                    <th style={{ textAlign: 'right' }}>{`${t('common.max')} (ms)`}</th>
+                                    <th scope="col">{t('common.fileName')}</th>
+                                    <th scope="col" style={{ textAlign: 'right' }}>{t('common.success')}</th>
+                                    <th scope="col" style={{ textAlign: 'right' }}>{t('common.failure')}</th>
+                                    <th scope="col" style={{ textAlign: 'right' }}>{t('common.successRate')}</th>
+                                    <th scope="col" style={{ textAlign: 'right' }}>{`${t('common.mean')} (ms)`}</th>
+                                    <th scope="col" style={{ textAlign: 'right' }}>P50 (ms)</th>
+                                    <th scope="col" style={{ textAlign: 'right', color: 'var(--color-accent)' }}>{`${t('common.p95')} (ms)`}</th>
+                                    <th scope="col" style={{ textAlign: 'right' }}>{`${t('common.p99')} (ms)`}</th>
+                                    <th scope="col" style={{ textAlign: 'right' }}>{`${t('common.min')} (ms)`}</th>
+                                    <th scope="col" style={{ textAlign: 'right' }}>{`${t('common.max')} (ms)`}</th>
                                   </tr>
                                 </thead>
                                 <tbody>

@@ -20,36 +20,36 @@ function SqlForm({ initial, onSave, onCancel }: SqlFormProps) {
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
-      <div className="modal fade-in" style={{ maxWidth: 680 }} onClick={e => e.stopPropagation()}>
+      <div className="modal fade-in" role="dialog" aria-modal="true" aria-labelledby="sql-modal-title" style={{ maxWidth: 680 }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3 className="modal-title">{initial ? t('sqlLibrary.editTitle') : t('sqlLibrary.addTitle')}</h3>
-          <button className="modal-close" onClick={onCancel}>×</button>
+          <h3 className="modal-title" id="sql-modal-title">{initial ? t('sqlLibrary.editTitle') : t('sqlLibrary.addTitle')}</h3>
+          <button className="modal-close" aria-label="Close" onClick={onCancel}>×</button>
         </div>
 
         <div className="form-row">
           <div className="form-group">
-            <label className="form-label">{t('sqlLibrary.name')}</label>
-            <input className="form-input" placeholder={t('sqlLibrary.namePlaceholder')}
+            <label className="form-label" htmlFor="sql-name">{t('sqlLibrary.name')}</label>
+            <input className="form-input" id="sql-name" placeholder={t('sqlLibrary.namePlaceholder')}
               value={form.name} onChange={e => set('name', e.target.value)} />
           </div>
           <div className="form-group">
-            <label className="form-label">{t('sqlLibrary.category')}</label>
-            <select className="form-select" value={form.category} onChange={e => set('category', e.target.value)}>
+            <label className="form-label" htmlFor="sql-category">{t('sqlLibrary.category')}</label>
+            <select className="form-select" id="sql-category" value={form.category} onChange={e => set('category', e.target.value)}>
               {CATEGORIES.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
         </div>
 
         <div className="form-group">
-          <label className="form-label">{t('sqlLibrary.sql')} *</label>
-          <textarea className="form-textarea" rows={8}
+          <label className="form-label" htmlFor="sql-text">{t('sqlLibrary.sql')} *</label>
+          <textarea className="form-textarea" id="sql-text" rows={8} aria-required="true"
             placeholder="SELECT * FROM users WHERE id = 1;"
             value={form.sql} onChange={e => set('sql', e.target.value)} />
         </div>
 
         <div className="form-group">
-          <label className="form-label">{t('sqlLibrary.description')}</label>
-          <input className="form-input" placeholder={t('sqlLibrary.descPlaceholder')}
+          <label className="form-label" htmlFor="sql-desc">{t('sqlLibrary.description')}</label>
+          <input className="form-input" id="sql-desc" placeholder={t('sqlLibrary.descPlaceholder')}
             value={form.description} onChange={e => set('description', e.target.value)} />
         </div>
 
@@ -88,8 +88,8 @@ function SqlCard({ item, onEdit, onDelete }: SqlCardProps) {
           <button className="btn btn-secondary btn-sm" onClick={() => setExpanded(e => !e)}>
             {expanded ? `▲ ${t('sqlLibrary.hideSql')}` : `▼ ${t('sqlLibrary.showSql')}`}
           </button>
-          <button className="btn btn-secondary btn-sm" onClick={() => onEdit(item)}>✏</button>
-          <button className="btn btn-danger btn-sm" onClick={() => onDelete(item.id)}>🗑</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => onEdit(item)} aria-label={t('common.edit')}>✏</button>
+          <button className="btn btn-danger btn-sm" onClick={() => onDelete(item.id)} aria-label={t('common.delete')}>🗑</button>
         </div>
       </div>
 

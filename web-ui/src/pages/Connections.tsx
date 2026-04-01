@@ -19,49 +19,49 @@ function ConnectionForm({ initial, onSave, onCancel }: ConnectionFormProps) {
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
-      <div className="modal fade-in" onClick={e => e.stopPropagation()}>
+      <div className="modal fade-in" role="dialog" aria-modal="true" aria-labelledby="modal-title" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3 className="modal-title">{initial ? t('connections.editTitle') : t('connections.addTitle')}</h3>
-          <button className="modal-close" onClick={onCancel}>×</button>
+          <h3 className="modal-title" id="modal-title">{initial ? t('connections.editTitle') : t('connections.addTitle')}</h3>
+          <button className="modal-close" aria-label="Close" onClick={onCancel}>×</button>
         </div>
 
         <div className="form-group">
-          <label className="form-label">{t('connections.name')}</label>
-          <input className="form-input" placeholder="My MySQL Server"
+          <label className="form-label" htmlFor="conn-name">{t('connections.name')}</label>
+          <input className="form-input" id="conn-name" placeholder="My MySQL Server"
             value={form.name} onChange={e => set('name', e.target.value)} />
         </div>
         <div className="form-row">
           <div className="form-group">
-            <label className="form-label">{t('connections.host')} *</label>
-            <input className="form-input" placeholder="localhost"
+            <label className="form-label" htmlFor="conn-host">{t('connections.host')} *</label>
+            <input className="form-input" id="conn-host" placeholder="localhost" aria-required="true"
               value={form.host} onChange={e => set('host', e.target.value)} />
           </div>
           <div className="form-group">
-            <label className="form-label">{t('connections.port')}</label>
-            <input className="form-input" type="number" placeholder="3306"
+            <label className="form-label" htmlFor="conn-port">{t('connections.port')}</label>
+            <input className="form-input" id="conn-port" type="number" placeholder="3306"
               value={form.port} onChange={e => set('port', e.target.value)} />
           </div>
         </div>
         <div className="form-group">
-          <label className="form-label">{t('connections.database')} *</label>
-          <input className="form-input" placeholder="mydb"
+          <label className="form-label" htmlFor="conn-database">{t('connections.database')} *</label>
+          <input className="form-input" id="conn-database" placeholder="mydb" aria-required="true"
             value={form.database} onChange={e => set('database', e.target.value)} />
         </div>
         <div className="form-row">
           <div className="form-group">
-            <label className="form-label">{t('connections.user')} *</label>
-            <input className="form-input" placeholder="root"
+            <label className="form-label" htmlFor="conn-user">{t('connections.user')} *</label>
+            <input className="form-input" id="conn-user" placeholder="root" aria-required="true"
               value={form.user} onChange={e => set('user', e.target.value)} />
           </div>
           <div className="form-group">
-            <label className="form-label">{t('connections.password')}</label>
-            <input className="form-input" type="password"
+            <label className="form-label" htmlFor="conn-password">{t('connections.password')}</label>
+            <input className="form-input" id="conn-password" type="password"
               value={form.password} onChange={e => set('password', e.target.value)} />
           </div>
         </div>
         <div className="form-group">
-          <label className="form-label">{t('connections.poolSize')}</label>
-          <input className="form-input" type="number" min="1" max="50"
+          <label className="form-label" htmlFor="conn-pool">{t('connections.poolSize')}</label>
+          <input className="form-input" id="conn-pool" type="number" min="1" max="50"
             value={form.poolSize} onChange={e => set('poolSize', e.target.value)} />
         </div>
 
@@ -168,7 +168,8 @@ export default function Connections() {
                       ✏ {t('common.edit')}
                     </button>
                     <button className="btn btn-danger btn-sm"
-                      onClick={() => handleDelete(conn.id)}>
+                      onClick={() => handleDelete(conn.id)}
+                      aria-label={t('common.delete')}>
                       🗑
                     </button>
                   </div>

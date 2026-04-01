@@ -54,17 +54,18 @@ function Sidebar() {
         <h1>⚡ {t('app.logo')}</h1>
         <p>{t('app.logoSub')}</p>
       </div>
-      <nav className="sidebar-nav">
+      <nav className="sidebar-nav" aria-label="Main navigation">
         {NAV.map((item, i) =>
           item.section ? (
-            <div key={i} className="nav-section-label">{t(item.section)}</div>
+            <div key={i} className="nav-section-label" aria-hidden="true">{t(item.section)}</div>
           ) : (
             <NavLink
               key={item.path}
               to={item.path!}
               className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+              aria-current={undefined}
             >
-              <span className="nav-icon">{item.icon}</span>
+              <span className="nav-icon" aria-hidden="true">{item.icon}</span>
               {t(item.labelKey!)}
             </NavLink>
           )
@@ -110,10 +111,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <div className="layout">
+        <a href="#main-content" className="skip-to-content">Skip to content</a>
         <Sidebar />
         <div className="main-area">
           <TopBar wsConnected={wsConnected} />
-          <main className="page-content fade-in">
+          <main id="main-content" className="page-content fade-in" role="main">
             <Routes>
               <Route path="/" element={<SingleTest wsMessages={wsMessages} subscribeTestId={subscribeTestId} />} />
               <Route path="/connections" element={<Connections />} />
