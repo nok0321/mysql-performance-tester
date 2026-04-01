@@ -1,53 +1,11 @@
 /**
- * EventsStore - JSON file persistence for query timeline events
- * Saves event annotations (e.g., "index added") in web/data/query-events.json
+ * EventsStore - SQLite persistence for query timeline events
+ * Stores event annotations (e.g., "index added") for performance tracking.
  */
 
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
+import { getDb } from './database.js';
 import type { QueryEvent, QueryEventType } from '../../lib/types/index.js';
-
-// In-process mutex to prevent write conflicts
-let _lock: Promise<unknown> = Promise.resolve();
-function withLock<T>(fn: () => Promise<T>): Promise<T> {
-  const next = _lock.then(fn);
-  _lock = next.catch(() => {});
-  return next;
-}
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.join(__dirname, '..', 'data');
-const STORE_FILE = path.join(DATA_DIR, 'query-events.json');
-
-async function writeAtomic(filePath: string, data: QueryEvent[]): Promise<void> {
-  const tmp = filePath + '.tmp';
-  await fs.writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
-  await fs.rename(tmp, filePath);
-}
-
-async function safeReadJson(filePath: string): Promise<QueryEvent[]> {
-  const raw = await fs.readFile(filePath, 'utf8');
-  try {
-    return JSON.parse(raw) as QueryEvent[];
-  } catch {
-    const backup = `${filePath}.corrupt_${Date.now()}`;
-    await fs.rename(filePath, backup).catch(() => {});
-    console.error(`[EventsStore] JSON parse failed. Backed up to ${backup}. Resetting.`);
-    await fs.writeFile(filePath, '[]', 'utf8').catch(() => {});
-    return [];
-  }
-}
-
-async function ensureStore(): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  try {
-    await fs.access(STORE_FILE);
-  } catch {
-    await fs.writeFile(STORE_FILE, JSON.stringify([], null, 2), 'utf8');
-  }
-}
 
 /** Input for creating a new event */
 export interface CreateEventInput {
@@ -57,51 +15,67 @@ export interface CreateEventInput {
   timestamp?: string;
 }
 
+/** SQLite row shape */
+interface EventRow {
+  id: string;
+  query_fingerprint: string;
+  label: string;
+  type: string;
+  timestamp: string;
+  created_at: string;
+}
+
+/** Map a SQLite row to a QueryEvent */
+function rowToEvent(row: EventRow): QueryEvent {
+  return {
+    id:               row.id,
+    queryFingerprint: row.query_fingerprint,
+    label:            row.label,
+    type:             row.type as QueryEventType,
+    timestamp:        row.timestamp,
+    createdAt:        row.created_at,
+  };
+}
+
 /**
  * List events for a given query fingerprint
  */
 export async function listByFingerprint(fingerprint: string): Promise<QueryEvent[]> {
-  await ensureStore();
-  const items = await safeReadJson(STORE_FILE);
-  return items
-    .filter(e => e.queryFingerprint === fingerprint)
-    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  const db = getDb();
+  const rows = db.prepare(
+    'SELECT * FROM query_events WHERE query_fingerprint = ? ORDER BY timestamp ASC'
+  ).all(fingerprint) as EventRow[];
+  return rows.map(rowToEvent);
 }
 
 /**
  * Create a new event
  */
-export function create(input: CreateEventInput): Promise<QueryEvent> {
-  return withLock(async () => {
-    await ensureStore();
-    const items = await safeReadJson(STORE_FILE);
+export async function create(input: CreateEventInput): Promise<QueryEvent> {
+  const db = getDb();
+  const now = new Date().toISOString();
+  const event: QueryEvent = {
+    id:               `evt_${randomUUID()}`,
+    queryFingerprint: input.queryFingerprint,
+    label:            input.label,
+    type:             input.type,
+    timestamp:        input.timestamp || now,
+    createdAt:        now,
+  };
 
-    const newItem: QueryEvent = {
-      id: `evt_${randomUUID()}`,
-      queryFingerprint: input.queryFingerprint,
-      label: input.label,
-      type: input.type,
-      timestamp: input.timestamp || new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-    };
+  db.prepare(`
+    INSERT INTO query_events (id, query_fingerprint, label, type, timestamp, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(event.id, event.queryFingerprint, event.label, event.type, event.timestamp, event.createdAt);
 
-    items.push(newItem);
-    await writeAtomic(STORE_FILE, items);
-    return newItem;
-  });
+  return event;
 }
 
 /**
  * Remove an event by ID
  */
-export function remove(id: string): Promise<boolean> {
-  return withLock(async () => {
-    await ensureStore();
-    const items = await safeReadJson(STORE_FILE);
-    const index = items.findIndex(e => e.id === id);
-    if (index === -1) return false;
-    items.splice(index, 1);
-    await writeAtomic(STORE_FILE, items);
-    return true;
-  });
+export async function remove(id: string): Promise<boolean> {
+  const db = getDb();
+  const result = db.prepare('DELETE FROM query_events WHERE id = ?').run(id);
+  return result.changes > 0;
 }

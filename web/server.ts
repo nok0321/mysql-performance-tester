@@ -34,6 +34,7 @@ import reportsRouter from './routes/reports.js';
 import historyRouter from './routes/history.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { wsTokenManager } from './security/ws-token.js';
+import { initDb, closeDb } from './store/database.js';
 
 /** Extended WebSocket with subscription management */
 interface SubscribableWebSocket extends WsWebSocket {
@@ -51,6 +52,9 @@ interface TerminalEvent {
 interface ExtendedWebSocketServer extends WebSocketServer {
   terminalEventCache?: Map<string, TerminalEvent>;
 }
+
+// ─── Initialize SQLite database ─────────────────────────────────────────
+initDb();
 
 const PORT: string | number = process.env.WEB_PORT || 3001;
 const app = express();
@@ -201,8 +205,9 @@ httpServer.listen(PORT, () => {
 function gracefulShutdown(signal: string): void {
   console.log(`\n[Server] ${signal} received. Shutting down gracefully...`);
 
-  // Clean up token manager
+  // Clean up token manager and close SQLite
   wsTokenManager.destroy();
+  closeDb();
 
   // Reject new WebSocket connections and close existing clients
   wss.clients.forEach(client => client.close(1001, 'Server shutting down'));
