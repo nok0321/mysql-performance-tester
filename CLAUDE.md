@@ -8,7 +8,7 @@
 ## Tech Stack
 - **Language / Runtime**: Node.js 22 (ES Modules — `"type": "module"`)
 - **Frontend**: React 19 + Vite + React Router 7 + Recharts
-- **Backend**: Express (web/server.js — port 3001)
+- **Backend**: Express (web/server.ts — port 3001)
 - **Database client**: mysql2 ^3.6.0
 - **Target DB**: MySQL 5.7 / 8.0 (EXPLAIN ANALYZE は 8.0.18+ 必要)
 - **Package manager**: npm
@@ -23,7 +23,7 @@ npm run test:demo                # デモモード実行
 npm run help                     # CLI ヘルプ表示
 
 # Web (2ターミナル必要)
-cd web && node server.js         # API サーバー起動 (port 3001)
+cd web && npx tsx server.ts      # API サーバー起動 (port 3001)
 cd web-ui && npm run dev         # フロントエンド起動 (port 5173)
 
 # Lint (web-ui のみ)
@@ -36,7 +36,7 @@ cd web-ui && npm run build       # プロダクションビルド
 mysql-performance-tester/
 ├── lib/                     # コアライブラリ (ESM)
 │   ├── config/              # DB・テスト設定
-│   ├── core/                # DB接続・クエリ実行 (database-connection.js, query-executor.js, test-runner.js)
+│   ├── core/                # DB接続・クエリ実行 (database-connection.ts, query-executor.ts, test-runner.ts)
 │   ├── testers/             # 単一・並列テスター
 │   ├── analyzers/           # EXPLAIN / Performance Schema / Optimizer Trace
 │   ├── statistics/          # パーセンタイル・外れ値検出 (IQR/Z-score/MAD)
@@ -45,17 +45,19 @@ mysql-performance-tester/
 │   ├── storage/             # 結果ファイル管理
 │   └── utils/               # ロガー・フォーマッター
 ├── cli/                     # CLI インターフェース
-│   ├── index.js             # エントリポイント
-│   ├── options.js           # 引数パース
+│   ├── index.ts             # エントリポイント
+│   ├── options.ts           # 引数パース
 │   └── commands/            # run / parallel / analyze / demo
 ├── web/                     # Express API サーバー (port 3001)
-│   ├── server.js
-│   └── routes/              # connections / tests / reports / sql-library
+│   ├── server.ts
+│   ├── routes/              # connections / tests / reports / sql-library
+│   └── store/               # SQLite ベースの永続化ストア (database.ts で初期化)
 ├── web-ui/                  # React + Vite フロントエンド (port 5173)
 │   └── src/
 │       ├── pages/           # Connections / SingleTest / ParallelTest / SqlLibrary / Reports / Analytics
 │       ├── api/             # API クライアント
-│       └── hooks/           # カスタム React フック
+│       ├── hooks/           # カスタム React フック
+│       └── i18n/            # 国際化設定 (日本語/英語)
 ├── sql/                     # 順次テスト用 SQL ファイル置き場
 ├── parallel/                # 並列テスト用 SQL ファイル置き場
 ├── setup/                   # DB スキーマ (01_ddl.sql) & シードデータ (02_seed.js)

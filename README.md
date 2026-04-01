@@ -19,6 +19,11 @@ Node.js 22 + TypeScript + MySQL 5.7/8.0 向け クエリパフォーマンス測
 | **クエリ履歴** | 同一クエリの実行履歴タイムライン・インデックス効果の可視化 |
 | **レポート** | JSON/Markdown/HTML（グラフィカル）/CSV/Excel |
 | **Web UI** | ブラウザから接続管理・テスト実行・結果確認・リアルタイム進捗（WebSocket） |
+| **ストレージ** | SQLite（better-sqlite3）による永続化・JSON からの自動マイグレーション |
+| **セキュリティ** | WebSocket ワンタイムトークン認証・AES-256-GCM パスワード暗号化 |
+| **API** | cursor-based ページネーション |
+| **i18n** | 日本語/英語切替（react-i18next・ブラウザ言語自動検出） |
+| **アクセシビリティ** | ARIA ラベル・キーボードナビゲーション・skip-to-content |
 
 ---
 
@@ -75,8 +80,9 @@ cd web-ui && npm run dev   # ターミナル2: フロントエンド（port 5173
 | **言語** | TypeScript (strict mode) |
 | **ランタイム** | Node.js 22+ (ESM) / tsx |
 | **フロントエンド** | React 19 + Vite + React Router 7 + Recharts |
-| **バックエンド** | Express + WebSocket (ws) |
+| **バックエンド** | Express + WebSocket (ws) + better-sqlite3 |
 | **データベース** | MySQL 5.7 / 8.0 (mysql2) |
+| **i18n** | react-i18next |
 | **セキュリティ** | Helmet / CORS / Rate Limiting / AES-256-GCM パスワード暗号化 |
 | **テスト** | Vitest (unit + integration) / Docker Compose (MySQL 8.0) |
 | **CI** | GitHub Actions |
@@ -107,7 +113,7 @@ mysql-performance-tester/
 ├── web/                     # Express API サーバー（port 3001）
 │   ├── server.ts            # サーバー本体 + WebSocket
 │   ├── routes/              # connections / tests / reports / sql-library / history
-│   ├── store/               # JSONファイルベースの永続化ストア
+│   ├── store/               # SQLite ベースの永続化ストア（database.ts で初期化）
 │   ├── security/            # AES-256-GCM 暗号化・IDバリデーション
 │   └── middleware/          # エラーハンドラ・環境変数バリデーション
 ├── web-ui/                  # React + Vite フロントエンド（port 5173）
@@ -116,6 +122,7 @@ mysql-performance-tester/
 │       ├── components/      # 共有コンポーネント（チャート・テーブル・フォーム）
 │       ├── api/             # API クライアント
 │       ├── hooks/           # useWebSocket / useTestExecution
+│       ├── i18n/            # 国際化設定（日本語/英語）
 │       └── types/           # フロントエンド型定義
 ├── tests/                   # テストスイート
 │   ├── statistics/          # 統計モジュールのユニットテスト
