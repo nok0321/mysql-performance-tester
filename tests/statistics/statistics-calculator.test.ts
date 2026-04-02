@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { StatisticsCalculator } from '../../lib/statistics/statistics-calculator.js';
+import { round, calculatePercentile } from '../../lib/statistics/math-utils.js';
 
 describe('StatisticsCalculator', () => {
     describe('calculate', () => {
@@ -110,43 +111,43 @@ describe('StatisticsCalculator', () => {
 
     describe('calculatePercentile', () => {
         it('calculates P50 (median) correctly', () => {
-            expect(StatisticsCalculator.calculatePercentile([1, 2, 3, 4, 5], 50)).toBe(3);
+            expect(calculatePercentile([1, 2, 3, 4, 5], 50)).toBe(3);
         });
 
         it('uses linear interpolation', () => {
-            const result = StatisticsCalculator.calculatePercentile([10, 20, 30, 40], 25);
+            const result = calculatePercentile([10, 20, 30, 40], 25);
             expect(result).toBe(17.5);
         });
 
         it('returns single element for single-element array', () => {
-            expect(StatisticsCalculator.calculatePercentile([42], 50)).toBe(42);
+            expect(calculatePercentile([42], 50)).toBe(42);
         });
 
         it('returns null for empty array', () => {
-            expect(StatisticsCalculator.calculatePercentile([], 50)).toBeNull();
+            expect(calculatePercentile([], 50)).toBeNull();
         });
 
         it('throws for invalid percentile', () => {
-            expect(() => StatisticsCalculator.calculatePercentile([1], -1)).toThrow();
-            expect(() => StatisticsCalculator.calculatePercentile([1], 101)).toThrow();
+            expect(() => calculatePercentile([1], -1)).toThrow();
+            expect(() => calculatePercentile([1], 101)).toThrow();
         });
 
         it('handles P0 and P100', () => {
-            expect(StatisticsCalculator.calculatePercentile([1, 2, 3], 0)).toBe(1);
-            expect(StatisticsCalculator.calculatePercentile([1, 2, 3], 100)).toBe(3);
+            expect(calculatePercentile([1, 2, 3], 0)).toBe(1);
+            expect(calculatePercentile([1, 2, 3], 100)).toBe(3);
         });
     });
 
     describe('round', () => {
         it('rounds to specified decimal places', () => {
-            expect(StatisticsCalculator.round(3.14159, 2)).toBe(3.14);
-            expect(StatisticsCalculator.round(3.14159, 3)).toBe(3.142);
+            expect(round(3.14159, 2)).toBe(3.14);
+            expect(round(3.14159, 3)).toBe(3.142);
         });
 
         it('returns null for null/undefined/NaN', () => {
-            expect(StatisticsCalculator.round(null as unknown as number, 2)).toBeNull();
-            expect(StatisticsCalculator.round(undefined as unknown as number, 2)).toBeNull();
-            expect(StatisticsCalculator.round(NaN, 2)).toBeNull();
+            expect(round(null as unknown as number, 2)).toBeNull();
+            expect(round(undefined as unknown as number, 2)).toBeNull();
+            expect(round(NaN, 2)).toBeNull();
         });
     });
 });

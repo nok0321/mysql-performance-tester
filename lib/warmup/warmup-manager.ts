@@ -8,6 +8,7 @@ import {
     type WarmupIterationResult,
     type CacheEffectivenessResult
 } from './cache-effectiveness-analyzer.js';
+import { round } from '../statistics/math-utils.js';
 
 /** Configuration for warmup behavior */
 export interface WarmupConfig {
@@ -121,8 +122,8 @@ export class WarmupManager {
             count: warmupCount,
             successCount,
             failureCount: warmupCount - successCount,
-            totalDuration: this.round(totalDuration, 2),
-            averageDuration: this.round(totalDuration / warmupCount, 2),
+            totalDuration: round(totalDuration, 2),
+            averageDuration: round(totalDuration / warmupCount, 2),
             results,
             cacheEffectiveness: CacheEffectivenessAnalyzer.analyze(results),
             timestamp: new Date().toISOString()
@@ -180,17 +181,4 @@ export class WarmupManager {
         this.warmupResults = [];
     }
 
-    /**
-     * Round a number to the specified decimal places.
-     * @param value - Value to round
-     * @param decimals - Number of decimal places
-     * @returns Rounded value, or null if input is invalid
-     */
-    private round(value: number, decimals: number): number | null {
-        if (value === null || value === undefined || isNaN(value)) {
-            return null;
-        }
-        const multiplier = Math.pow(10, decimals);
-        return Math.round(value * multiplier) / multiplier;
-    }
 }
