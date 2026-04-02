@@ -18,7 +18,8 @@ import {
   JsonExporter,
   MarkdownExporter,
   HtmlExporter,
-  CsvExporter
+  CsvExporter,
+  ExcelExporter
 } from '../../lib/reports/exporters/index.js';
 import { validateId } from '../security/validate-id.js';
 import { asyncHandler } from '../middleware/async-handler.js';
@@ -154,6 +155,7 @@ router.get('/:id/export', asyncHandler(async (req: Request, res: Response) => {
     markdown: { exporter: new MarkdownExporter(), mime: 'text/markdown', ext: 'md', multi: false },
     html: { exporter: new HtmlExporter(), mime: 'text/html', ext: 'html', multi: false },
     csv: { exporter: new CsvExporter() as unknown as BaseExporter, mime: 'text/csv', ext: 'csv', multi: true },
+    excel: { exporter: new ExcelExporter() as unknown as BaseExporter, mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ext: 'xlsx', multi: false },
   };
 
   const target = exporterMap[format];
