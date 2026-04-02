@@ -6,6 +6,7 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import * as store from '../store/connections-store.js';
 import { DatabaseConnection } from '../../lib/core/database-connection.js';
 import { createDbConfig } from '../../lib/config/database-configuration.js';
@@ -13,6 +14,14 @@ import { validateId } from '../security/validate-id.js';
 import { asyncHandler } from '../middleware/async-handler.js';
 
 const router: Router = Router();
+
+const connectionTestRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many connection test requests. Please try again later.' }
+});
 
 /** List all connections */
 router.get('/', asyncHandler(async (_req: Request, res: Response) => {
@@ -57,7 +66,7 @@ router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 /** Test connectivity (SELECT 1) */
-router.post('/:id/test', asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/test', connectionTestRateLimit, asyncHandler(async (req: Request, res: Response) => {
   const id = validateId(req.params.id as string, '接続ID');
   const connectionData = await store.getById(id);
   if (!connectionData) {
