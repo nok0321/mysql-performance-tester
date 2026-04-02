@@ -65,7 +65,7 @@ describe('connections-store', () => {
       expect(result[0].passwordMasked).toBe('••••••••');
       expect(result[1].passwordMasked).toBe('••••••••');
       // Should not have the password field
-      expect((result[0] as Record<string, unknown>).password).toBeUndefined();
+      expect((result[0] as unknown as Record<string, unknown>).password).toBeUndefined();
     });
   });
 
