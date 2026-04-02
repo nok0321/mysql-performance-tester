@@ -143,15 +143,9 @@ describe('QueryExecutor (integration)', () => {
         });
     });
 
-    describe('getExplainAnalyze()', () => {
-        it('should return EXPLAIN ANALYZE result', async () => {
-            const result = await executor.getExplainAnalyze(TEST_QUERIES.simpleSelect);
-            expect(result).not.toBeNull();
-            expect(result!.type).toBe('EXPLAIN_ANALYZE');
-            expect(typeof result!.tree).toBe('string');
-            expect(result!.tree.length).toBeGreaterThan(0);
-        });
-    });
+    // NOTE: getExplainAnalyze() was removed from QueryExecutor.
+    // EXPLAIN ANALYZE is now exclusively handled by ExplainAnalyzer.
+    // See tests/integration/analyzers/explain-analyzer.integration.test.ts
 
     describe('getExecutionStatistics()', () => {
         it('should calculate statistics from results', async () => {

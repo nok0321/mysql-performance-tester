@@ -15,5 +15,4 @@ export type {
     MultipleOptions,
     ExecutionStatistics,
     ExecutionPlanResult,
-    ExplainAnalyzeResult,
 } from './query-executor.js';

@@ -61,14 +61,6 @@ export interface ExecutionPlanResult {
     timestamp: string;
 }
 
-/** EXPLAIN ANALYZE result */
-export interface ExplainAnalyzeResult {
-    type: string;
-    tree: string;
-    json: unknown;
-    timestamp: string;
-}
-
 /**
  * Assert that a query contains only a single SQL statement.
  *
@@ -281,49 +273,6 @@ export class QueryExecutor {
             };
         } catch (error) {
             console.warn(`Failed to get execution plan: ${(error as Error).message}`);
-            return null;
-        }
-    }
-
-    /**
-     * Execute EXPLAIN ANALYZE (MySQL 8.0.18+)
-     * @param query - SQL query
-     * @returns EXPLAIN ANALYZE result, or null if unsupported/failed
-     */
-    async getExplainAnalyze(query: string): Promise<ExplainAnalyzeResult | null> {
-        if (!this.db.isExplainAnalyzeSupported()) {
-            console.warn('EXPLAIN ANALYZE is not supported on this MySQL version');
-            return null;
-        }
-
-        try {
-            assertSingleStatement(query);
-
-            const [rows] = await this.db.query(`EXPLAIN ANALYZE ${query}`);
-
-            // Also attempt JSON format.
-            // SET @@explain_json_format_version is a session variable,
-            // so SET and EXPLAIN must run on the same connection.
-            let jsonResult: unknown = null;
-            const conn = await this.db.getConnection();
-            try {
-                await conn.query('SET @@explain_json_format_version = 2');
-                const [jsonRows] = await conn.query<RowDataPacket[]>(`EXPLAIN ANALYZE FORMAT=JSON ${query}`);
-                jsonResult = JSON.parse(jsonRows[0]['EXPLAIN'] as string);
-            } catch (_jsonError) {
-                // JSON format may not be available -- ignore
-            } finally {
-                conn.release();
-            }
-
-            return {
-                type: 'EXPLAIN_ANALYZE',
-                tree: rows[0]['EXPLAIN'] as string,
-                json: jsonResult,
-                timestamp: new Date().toISOString()
-            };
-        } catch (error) {
-            console.warn(`Failed to execute EXPLAIN ANALYZE: ${(error as Error).message}`);
             return null;
         }
     }
