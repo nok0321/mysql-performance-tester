@@ -2,6 +2,12 @@
  * CLI Options - Command-line option definitions
  */
 
+import { readFileSync } from 'fs';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 /** Supported option types */
 type OptionType = 'string' | 'number' | 'boolean';
 
@@ -229,7 +235,12 @@ export function parseArguments(args: string[]): ParsedArguments {
                 } else if (i + 1 < args.length) {
                     i++;
                     const value = args[i];
-                    result.options[key] = option.type === 'number' ? parseFloat(value) : value;
+                    const parsed = option.type === 'number' ? parseFloat(value) : value;
+                    if (option.type === 'number' && (isNaN(parsed as number) || (parsed as number) <= 0)) {
+                        console.error(`Error: --${key} must be a positive number, got: ${value}`);
+                        process.exit(1);
+                    }
+                    result.options[key] = parsed;
                 }
             }
             i++;
@@ -247,7 +258,12 @@ export function parseArguments(args: string[]): ParsedArguments {
                 } else if (i + 1 < args.length) {
                     i++;
                     const value = args[i];
-                    result.options[longKey] = option.type === 'number' ? parseFloat(value) : value;
+                    const parsed = option.type === 'number' ? parseFloat(value) : value;
+                    if (option.type === 'number' && (isNaN(parsed as number) || (parsed as number) <= 0)) {
+                        console.error(`Error: -${shortKey} must be a positive number, got: ${value}`);
+                        process.exit(1);
+                    }
+                    result.options[longKey] = parsed;
                 }
             }
             i++;
@@ -334,5 +350,11 @@ MySQL Performance Tester - Command Line Interface
  * Get version information
  */
 export function getVersion(): string {
-    return '1.0.0';
+    try {
+        const pkgPath = resolve(__dirname, '..', 'package.json');
+        const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as { version: string };
+        return pkg.version;
+    } catch {
+        return '1.0.0';
+    }
 }
