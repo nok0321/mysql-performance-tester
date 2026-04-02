@@ -23,6 +23,12 @@ export class OptimizerTraceAnalyzer extends BaseAnalyzer {
             return null;
         }
 
+        // Skip non-SELECT queries to avoid unintended side effects
+        if (!/^\s*SELECT/i.test(query)) {
+            console.warn('Optimizer Trace skipped: only SELECT queries are supported (non-SELECT queries would cause side effects)');
+            return null;
+        }
+
         let traceConnection: PoolConnection | null = null;
         try {
             traceConnection = await this.connection.getConnection();
@@ -40,9 +46,6 @@ export class OptimizerTraceAnalyzer extends BaseAnalyzer {
                 'SELECT TRACE FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE'
             ) as [RowDataPacket[], unknown];
 
-            // Disable optimizer trace
-            await traceConnection.query('SET optimizer_trace="enabled=off"');
-
             if (rows.length > 0) {
                 return {
                     trace: JSON.parse((rows[0].TRACE as string).replace(/\/\*[\s\S]*?\*\//g, '')) as Record<string, unknown>,
@@ -55,7 +58,13 @@ export class OptimizerTraceAnalyzer extends BaseAnalyzer {
             console.warn(`Optimizer Trace capture error: ${(error as Error).message}`);
             return null;
         } finally {
+            // Always disable trace and release connection
             if (traceConnection) {
+                try {
+                    await traceConnection.query('SET optimizer_trace="enabled=off"');
+                } catch {
+                    // Best-effort cleanup
+                }
                 traceConnection.release();
             }
         }
