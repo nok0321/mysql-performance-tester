@@ -18,6 +18,6 @@ services:
       retries: 12
       start_period: 30s
     command:
-      - --default-authentication-plugin=mysql_native_password
+      - --mysql-native-password=ON
       - --performance_schema=ON
       - --optimizer_trace_max_mem_size=1000000
