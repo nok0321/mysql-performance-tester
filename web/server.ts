@@ -75,8 +75,11 @@ app.use(helmet({
   }
 }));
 
+const corsOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(s => s.trim())
+  : ['http://localhost:5173', 'http://127.0.0.1:5173'];
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  origin: corsOrigins,
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -194,11 +197,12 @@ app.get('/api/health', (_req: Request, res: Response) => {
 app.use(errorHandler);
 
 // ─── Start ───────────────────────────────────────────────────────────────
-httpServer.listen(PORT, () => {
+const BIND_HOST = process.env.BIND_HOST || '127.0.0.1';
+httpServer.listen(Number(PORT), BIND_HOST, () => {
   console.log(`\n🚀 MySQL Performance Tester Web API`);
-  console.log(`   REST API : http://localhost:${PORT}/api`);
-  console.log(`   WebSocket: ws://localhost:${PORT}`);
-  console.log(`   Health   : http://localhost:${PORT}/api/health\n`);
+  console.log(`   REST API : http://${BIND_HOST}:${PORT}/api`);
+  console.log(`   WebSocket: ws://${BIND_HOST}:${PORT}`);
+  console.log(`   Health   : http://${BIND_HOST}:${PORT}/api/health\n`);
 });
 
 // ─── Graceful Shutdown ──────────────────────────────────────────────────
