@@ -26,8 +26,10 @@ export interface Connection {
   port: number;
   database: string;
   user: string;
-  password: string;
+  passwordMasked: string;
   poolSize: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ConnectionFormData {
@@ -56,6 +58,7 @@ export interface SqlItem {
   sql: string;
   category: string;
   description: string;
+  tags?: string;
   updatedAt: string;
   createdAt: string;
 }
@@ -229,7 +232,7 @@ export type RunAction =
 export interface WsMessage {
   type: string;
   testId?: string;
-  data?: TestProgress;
+  data?: TestProgress | SingleTestResult | ParallelResults | ComparisonResult | { message: string };
   [key: string]: unknown;
 }
 
