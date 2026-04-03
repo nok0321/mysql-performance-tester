@@ -18,10 +18,16 @@ export default function ExplainPanel({ explain }: Props) {
       {explain.data != null && (
         <div className="code-block">{JSON.stringify(explain.data, null, 2)}</div>
       )}
-      {explain.analyze?.tree && (
+      {explain.json != null && (
+        <>
+          <div className="section-title mt-4">EXPLAIN JSON</div>
+          <div className="code-block">{JSON.stringify(explain.json, null, 2)}</div>
+        </>
+      )}
+      {explain.tree && (
         <>
           <div className="section-title mt-4">{t('components.explainAnalyze')}</div>
-          <div className="code-block">{explain.analyze.tree}</div>
+          <div className="code-block">{explain.tree}</div>
         </>
       )}
     </div>
