@@ -16,8 +16,8 @@ interface Props {
 export default function HistogramChart({ distribution }: Props) {
   const { t } = useTranslation();
 
-  if (!distribution?.buckets) return <div className="empty-state"><p>{t('components.distributionNoData')}</p></div>;
-  const data = distribution.buckets.map(b => ({ name: `${b.min?.toFixed(0)}ms`, count: b.count }));
+  if (!distribution?.bins) return <div className="empty-state"><p>{t('components.distributionNoData')}</p></div>;
+  const data = distribution.bins.map(b => ({ name: `${b.start.toFixed(1)}ms`, count: b.count }));
   return (
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>

@@ -122,14 +122,17 @@ export interface CountStats {
   outliers?: number;
 }
 
-export interface DistributionBucket {
-  min?: number;
-  max?: number;
+export interface DistributionBin {
+  start: number;
+  end: number;
   count: number;
+  percentage: number;
 }
 
 export interface Distribution {
-  buckets?: DistributionBucket[];
+  bins?: DistributionBin[];
+  binCount?: number;
+  binWidth?: number;
 }
 
 export interface Statistics {
@@ -141,10 +144,11 @@ export interface Statistics {
 }
 
 export interface ExplainAnalyze {
-  data?: unknown;
-  analyze?: {
-    tree?: string;
-  };
+  type?: 'EXPLAIN' | 'EXPLAIN_ANALYZE';
+  data?: Record<string, unknown>;
+  tree?: string;
+  json?: Record<string, unknown> | null;
+  timestamp?: string;
   queryPlan?: QueryPlan;
 }
 

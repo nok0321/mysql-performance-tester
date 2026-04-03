@@ -254,7 +254,7 @@ export default function SingleTest({ wsMessages, subscribeTestId }: Props) {
             )}
 
             {activeTab === 'recommend' && (
-              <RecommendPanel plan={run.result.explainAnalyze?.queryPlan} />
+              <RecommendPanel plan={run.result.explainAnalyze?.queryPlan} explainTree={run.result.explainAnalyze?.tree} />
             )}
           </div>
         )}

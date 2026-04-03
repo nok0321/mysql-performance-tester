@@ -400,11 +400,11 @@ export default function ComparisonTest({ wsMessages, subscribeTestId }: Props) {
               <div className="card-grid card-grid-2">
                 <div>
                   <div className="section-title">{comparison.testNameA}</div>
-                  <RecommendPanel plan={comparison.resultA?.explainAnalyze?.queryPlan} />
+                  <RecommendPanel plan={comparison.resultA?.explainAnalyze?.queryPlan} explainTree={comparison.resultA?.explainAnalyze?.tree} />
                 </div>
                 <div>
                   <div className="section-title">{comparison.testNameB}</div>
-                  <RecommendPanel plan={comparison.resultB?.explainAnalyze?.queryPlan} />
+                  <RecommendPanel plan={comparison.resultB?.explainAnalyze?.queryPlan} explainTree={comparison.resultB?.explainAnalyze?.tree} />
                 </div>
               </div>
             )}

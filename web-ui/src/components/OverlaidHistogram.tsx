@@ -17,25 +17,25 @@ interface Props {
 
 export default function OverlaidHistogram({ distributionA, distributionB, nameA, nameB }: Props) {
   const { t } = useTranslation();
-  const bucketsA = distributionA?.buckets;
-  const bucketsB = distributionB?.buckets;
+  const binsA = distributionA?.bins;
+  const binsB = distributionB?.bins;
 
-  if (!bucketsA && !bucketsB) {
+  if (!binsA && !binsB) {
     return <div className="empty-state"><p>{t('components.distributionNoData')}</p></div>;
   }
 
-  // Build a unified set of bucket labels from both distributions
+  // Build a unified set of bin labels from both distributions
   const labelMap = new Map<string, { countA: number; countB: number }>();
 
-  bucketsA?.forEach(b => {
-    const label = `${b.min?.toFixed(0)}`;
+  binsA?.forEach(b => {
+    const label = `${b.start.toFixed(1)}`;
     const entry = labelMap.get(label) || { countA: 0, countB: 0 };
     entry.countA = b.count;
     labelMap.set(label, entry);
   });
 
-  bucketsB?.forEach(b => {
-    const label = `${b.min?.toFixed(0)}`;
+  binsB?.forEach(b => {
+    const label = `${b.start.toFixed(1)}`;
     const entry = labelMap.get(label) || { countA: 0, countB: 0 };
     entry.countB = b.count;
     labelMap.set(label, entry);
