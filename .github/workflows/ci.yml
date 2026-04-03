@@ -44,6 +44,17 @@ jobs:
         run: npm run build
         working-directory: web-ui
 
+      - name: Audit root dependencies
+        run: npm audit --audit-level=high
+
+      - name: Audit web dependencies
+        run: npm audit --audit-level=high
+        working-directory: web
+
+      - name: Audit web-ui dependencies
+        run: npm audit --audit-level=high
+        working-directory: web-ui
+
   integration-test:
     runs-on: ubuntu-latest
 
