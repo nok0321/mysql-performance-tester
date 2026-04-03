@@ -157,7 +157,7 @@ describe('validateTestConfig', () => {
 
   it('should reject invalid outlierMethod', () => {
     const config = createTestConfig();
-    (config as Record<string, unknown>).outlierMethod = 'invalid';
+    (config as unknown as Record<string, unknown>).outlierMethod = 'invalid';
     const result = validateTestConfig(config);
     expect(result.valid).toBe(false);
     expect(result.errors).toContain('outlierMethod must be one of: iqr, zscore, mad');

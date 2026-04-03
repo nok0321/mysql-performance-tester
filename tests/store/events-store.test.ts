@@ -48,7 +48,7 @@ describe('events-store', () => {
 
     it('should return events for the given fingerprint only', async () => {
       await store.create({ queryFingerprint: 'fp_A', label: 'Event A1', type: 'index_added' });
-      await store.create({ queryFingerprint: 'fp_B', label: 'Event B1', type: 'config_changed' });
+      await store.create({ queryFingerprint: 'fp_B', label: 'Event B1', type: 'config_change' });
       await store.create({ queryFingerprint: 'fp_A', label: 'Event A2', type: 'index_removed' });
 
       const result = await store.listByFingerprint('fp_A');

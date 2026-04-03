@@ -34,7 +34,7 @@ export class DistributionStrategy {
  * Random distribution strategy
  */
 export class RandomDistributionStrategy extends DistributionStrategy {
-    selectSQLFile(_threadId: number, _iteration: number): SQLFile | null {
+    selectSQLFile(_threadId: number, _iteration: number, _testIterations: number): SQLFile | null {
         return this.sqlFileManager.getRandomSQLFile();
     }
 }
@@ -63,7 +63,7 @@ export class SequentialDistributionStrategy extends DistributionStrategy {
         this.currentIndex = 0;
     }
 
-    selectSQLFile(_threadId: number, _iteration: number): SQLFile | null {
+    selectSQLFile(_threadId: number, _iteration: number, _testIterations: number): SQLFile | null {
         const fileCount = this.sqlFileManager.getFileCount();
         if (fileCount === 0) return null;
 
@@ -77,7 +77,7 @@ export class SequentialDistributionStrategy extends DistributionStrategy {
  * Category-based distribution strategy
  */
 export class CategoryBasedDistributionStrategy extends DistributionStrategy {
-    selectSQLFile(threadId: number, _iteration: number): SQLFile | null {
+    selectSQLFile(threadId: number, _iteration: number, _testIterations: number): SQLFile | null {
         const files = this.sqlFileManager.getSQLFiles();
         if (files.length === 0) return null;
 
