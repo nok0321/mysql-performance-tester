@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { OutlierDetector } from '../../lib/statistics/outlier-detector.js';
+import { calculatePercentile } from '../../lib/statistics/math-utils.js';
 
 describe('OutlierDetector', () => {
     const normalData: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -90,11 +91,11 @@ describe('OutlierDetector', () => {
 
     describe('calculatePercentile', () => {
         it('calculates correctly', () => {
-            expect(OutlierDetector.calculatePercentile([1, 2, 3, 4, 5], 50)).toBe(3);
+            expect(calculatePercentile([1, 2, 3, 4, 5], 50)).toBe(3);
         });
 
         it('returns null for empty array', () => {
-            expect(OutlierDetector.calculatePercentile([], 50)).toBeNull();
+            expect(calculatePercentile([], 50)).toBeNull();
         });
     });
 });

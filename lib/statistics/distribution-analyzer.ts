@@ -4,6 +4,7 @@
  */
 
 import type { Distribution, DistributionBin } from '../types/index.js';
+import { round } from './math-utils.js';
 
 export class DistributionAnalyzer {
     /**
@@ -38,29 +39,16 @@ export class DistributionAnalyzer {
         });
 
         bins.forEach(bin => {
-            bin.percentage = this.round((bin.count / sortedArray.length) * 100, 2)!;
-            bin.start = this.round(bin.start, 3)!;
-            bin.end = this.round(bin.end, 3)!;
+            bin.percentage = round((bin.count / sortedArray.length) * 100, 2)!;
+            bin.start = round(bin.start, 3)!;
+            bin.end = round(bin.end, 3)!;
         });
 
         return {
             bins,
             binCount,
-            binWidth: this.round(binWidth, 3)!
+            binWidth: round(binWidth, 3)!
         };
     }
 
-    /**
-     * Round a number to the specified decimal places
-     * @param value - The value to round
-     * @param decimals - Number of decimal places
-     * @returns The rounded value
-     */
-    static round(value: number, decimals: number): number | null {
-        if (value === null || value === undefined || isNaN(value)) {
-            return null;
-        }
-        const multiplier = Math.pow(10, decimals);
-        return Math.round(value * multiplier) / multiplier;
-    }
 }

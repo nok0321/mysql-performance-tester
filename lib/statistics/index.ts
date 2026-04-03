@@ -6,3 +6,4 @@
 export { StatisticsCalculator } from './statistics-calculator.js';
 export { OutlierDetector } from './outlier-detector.js';
 export { DistributionAnalyzer } from './distribution-analyzer.js';
+export { round, calculatePercentile } from './math-utils.js';

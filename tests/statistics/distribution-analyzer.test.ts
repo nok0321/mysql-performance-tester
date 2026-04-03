@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { DistributionAnalyzer } from '../../lib/statistics/distribution-analyzer.js';
+import { round } from '../../lib/statistics/math-utils.js';
 
 describe('DistributionAnalyzer', () => {
     describe('calculateDistribution', () => {
@@ -58,12 +59,12 @@ describe('DistributionAnalyzer', () => {
 
     describe('round', () => {
         it('rounds correctly', () => {
-            expect(DistributionAnalyzer.round(3.14159, 2)).toBe(3.14);
+            expect(round(3.14159, 2)).toBe(3.14);
         });
 
         it('returns null for null/NaN', () => {
-            expect(DistributionAnalyzer.round(null as unknown as number, 2)).toBeNull();
-            expect(DistributionAnalyzer.round(NaN, 2)).toBeNull();
+            expect(round(null as unknown as number, 2)).toBeNull();
+            expect(round(NaN, 2)).toBeNull();
         });
     });
 });

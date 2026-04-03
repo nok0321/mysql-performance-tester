@@ -3,6 +3,8 @@
  * Analyzes cache effectiveness from warmup execution results.
  */
 
+import { round } from '../statistics/math-utils.js';
+
 /** Result of a single warmup iteration */
 export interface WarmupIterationResult {
     iteration: number;
@@ -60,9 +62,9 @@ export class CacheEffectivenessAnalyzer {
         const trend = this.analyzeTrend(durations);
 
         return {
-            firstHalfAvg: this.round(avgFirst, 2),
-            secondHalfAvg: this.round(avgSecond, 2),
-            improvementPercentage: this.round(improvement, 2),
+            firstHalfAvg: round(avgFirst, 2),
+            secondHalfAvg: round(avgSecond, 2),
+            improvementPercentage: round(improvement, 2),
             effectivenessRating: this.rateEffectiveness(improvement),
             trend: trend,
             recommendation: this.generateRecommendation(improvement, trend)
@@ -101,9 +103,9 @@ export class CacheEffectivenessAnalyzer {
 
         return {
             type: trendType,
-            group1Avg: this.round(avg1, 2),
-            group2Avg: this.round(avg2, 2),
-            group3Avg: this.round(avg3, 2)
+            group1Avg: round(avg1, 2),
+            group2Avg: round(avg2, 2),
+            group3Avg: round(avg3, 2)
         };
     }
 
@@ -146,17 +148,4 @@ export class CacheEffectivenessAnalyzer {
         }
     }
 
-    /**
-     * Round a number to the specified decimal places.
-     * @param value - Value to round
-     * @param decimals - Number of decimal places
-     * @returns Rounded value, or null if input is invalid
-     */
-    static round(value: number, decimals: number): number | null {
-        if (value === null || value === undefined || isNaN(value)) {
-            return null;
-        }
-        const multiplier = Math.pow(10, decimals);
-        return Math.round(value * multiplier) / multiplier;
-    }
 }
