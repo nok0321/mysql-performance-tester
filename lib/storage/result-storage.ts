@@ -6,6 +6,53 @@
 import fs from 'fs/promises';
 import path from 'path';
 
+/**
+ * Escape a field value per RFC 4180.
+ * Wraps in double-quotes if the value contains comma, double-quote, or newline.
+ */
+function csvEscapeField(value: string): string {
+    if (/[",\n\r]/.test(value)) {
+        return '"' + value.replace(/"/g, '""') + '"';
+    }
+    return value;
+}
+
+/**
+ * Parse a single CSV line respecting RFC 4180 quoting rules.
+ */
+function csvParseLine(line: string): string[] {
+    const fields: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inQuotes) {
+            if (ch === '"') {
+                if (i + 1 < line.length && line[i + 1] === '"') {
+                    current += '"';
+                    i++; // skip escaped quote
+                } else {
+                    inQuotes = false;
+                }
+            } else {
+                current += ch;
+            }
+        } else {
+            if (ch === '"') {
+                inQuotes = true;
+            } else if (ch === ',') {
+                fields.push(current);
+                current = '';
+            } else {
+                current += ch;
+            }
+        }
+    }
+    fields.push(current);
+    return fields;
+}
+
 interface ResultStorageConfigInput {
     resultDirectory?: string;
     enableAutoSave?: boolean;
@@ -189,10 +236,10 @@ export class ResultStorage {
                 percentiles.p99 || '',
                 count.total || '',
                 count.total > 0 ? ((count.included / count.total) * 100).toFixed(2) : ''
-            ].join(',');
+            ].map(v => csvEscapeField(String(v))).join(',');
         });
 
-        const csvContent = [headers.join(','), ...rows].join('\n');
+        const csvContent = [headers.map(h => csvEscapeField(h)).join(','), ...rows].join('\n');
         await fs.writeFile(filePath, csvContent, 'utf8');
     }
 
@@ -230,17 +277,17 @@ export class ResultStorage {
      */
     parseCsv(content: string): CsvParsedResult {
         const lines = content.split('\n');
-        const headers = lines[0].split(',');
+        const headers = csvParseLine(lines[0]);
         const results: Record<string, string>[] = [];
 
         for (let i = 1; i < lines.length; i++) {
             if (!lines[i].trim()) continue;
 
-            const values = lines[i].split(',');
+            const values = csvParseLine(lines[i]);
             const result: Record<string, string> = {};
 
             headers.forEach((header, index) => {
-                result[header] = values[index];
+                result[header] = values[index] ?? '';
             });
 
             results.push(result);
