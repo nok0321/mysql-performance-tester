@@ -233,12 +233,12 @@ export type RunAction =
 
 // ─── WebSocket ────────────────────────────────────────────────────────────
 
-export interface WsMessage {
-  type: string;
-  testId?: string;
-  data?: TestProgress | SingleTestResult | ParallelResults | ComparisonResult | { message: string };
-  [key: string]: unknown;
-}
+export type WsMessage =
+  | { type: 'connected'; data?: { message: string } }
+  | { type: 'progress'; testId: string; data: TestProgress }
+  | { type: 'complete'; testId: string; data: SingleTestResult | ParallelResults | ComparisonResult }
+  | { type: 'error'; testId: string; data: { message: string } }
+  | { type: string; testId?: string; data?: unknown };
 
 // ─── Reports ──────────────────────────────────────────────────────────────
 
