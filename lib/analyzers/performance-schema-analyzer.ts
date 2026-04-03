@@ -115,14 +115,19 @@ export class PerformanceSchemaAnalyzer extends BaseAnalyzer {
                 LIMIT 10
             `) as [RowDataPacket[], unknown];
 
-            return rows.map((row: RowDataPacket) => ({
-                query: (row.DIGEST_TEXT as string | undefined)?.substring(0, 100) + '...',
+            return rows.map((row: RowDataPacket) => {
+                const digestText = row.DIGEST_TEXT as string | null;
+                const truncated = digestText ? digestText.substring(0, 100) : '';
+                const suffix = digestText && digestText.length > 100 ? '...' : '';
+                return {
+                query: truncated + suffix,
                 executionCount: row.execution_count as number,
                 avgLatency: parseFloat((row.avg_latency_ms as number | undefined)?.toFixed(3) ?? '0') || 0,
                 maxLatency: parseFloat((row.max_latency_ms as number | undefined)?.toFixed(3) ?? '0') || 0,
                 rowsExamined: row.total_rows_examined as number,
                 rowsSent: row.total_rows_sent as number,
-            }));
+            };
+            });
         } catch (_error) {
             console.warn('Top queries fetch error:', (_error as Error).message);
             return null;
@@ -164,23 +169,24 @@ export class PerformanceSchemaAnalyzer extends BaseAnalyzer {
      */
     async getTableScans(): Promise<TableScanEntry[] | null> {
         try {
-            // Use sys schema if available
+            // Find tables accessed without an index (INDEX_NAME IS NULL = full table scan)
             const [rows] = await this.connection.query(`
                 SELECT
-                    object_schema,
-                    object_name,
-                    rows_full_scanned
-                FROM performance_schema.table_io_waits_summary_by_table
-                WHERE object_schema NOT IN ('mysql', 'performance_schema', 'information_schema', 'sys')
-                    AND rows_full_scanned > 0
-                ORDER BY rows_full_scanned DESC
+                    OBJECT_SCHEMA AS object_schema,
+                    OBJECT_NAME AS object_name,
+                    COUNT_FETCH AS full_scans
+                FROM performance_schema.table_io_waits_summary_by_index_usage
+                WHERE INDEX_NAME IS NULL
+                    AND OBJECT_SCHEMA NOT IN ('mysql', 'performance_schema', 'information_schema', 'sys')
+                    AND COUNT_FETCH > 0
+                ORDER BY COUNT_FETCH DESC
                 LIMIT 10
             `) as [RowDataPacket[], unknown];
 
             return rows.map((row: RowDataPacket) => ({
                 schema: row.object_schema as string,
                 table: row.object_name as string,
-                fullScans: row.rows_full_scanned as number,
+                fullScans: row.full_scans as number,
             }));
         } catch (_error) {
             console.warn('Table scans fetch error:', (_error as Error).message);
