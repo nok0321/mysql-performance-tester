@@ -179,7 +179,14 @@ app.use('/api/reports', reportsRouter);
 app.use('/api/history', historyRouter);
 
 // ─── WebSocket token endpoint ────────────────────────────────────────────
-app.get('/api/ws-token', (_req: Request, res: Response) => {
+const wsTokenRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many token requests. Please try again later.' }
+});
+app.get('/api/ws-token', wsTokenRateLimit, (_req: Request, res: Response) => {
   const token = wsTokenManager.generate();
   res.json({ success: true, token });
 });
