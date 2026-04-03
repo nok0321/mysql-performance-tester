@@ -35,6 +35,10 @@ web/data/store.db-wal
 web/data/store.db-shm
 web/data/*.json.migrated
 
+# Playwright
+test-results/
+playwright-report/
+
 # TypeScript build output
 dist/
 
