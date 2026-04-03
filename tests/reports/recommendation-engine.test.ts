@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { RecommendationEngine } from '../../lib/reports/recommendation-engine.js';
+import type { InternalReportData } from '../../lib/reports/recommendation-engine.js';
 
 /**
  * Helper to create minimal report data for the RecommendationEngine
  */
-function createReportData(overrides: Record<string, unknown> = {}) {
+function createReportData(overrides: Record<string, unknown> = {}): InternalReportData {
     return {
         summary: {
             overallMetrics: {
@@ -13,7 +14,7 @@ function createReportData(overrides: Record<string, unknown> = {}) {
             },
             ...(overrides.summary as Record<string, unknown> || {}),
         },
-        details: (overrides.details as unknown[]) || [],
+        details: (overrides.details || []) as InternalReportData['details'],
         recommendations: [],
     };
 }
