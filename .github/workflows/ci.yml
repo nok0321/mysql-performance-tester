@@ -95,3 +95,76 @@ jobs:
 
       - name: Run integration tests
         run: npm run test:integration
+
+  e2e-test:
+    runs-on: ubuntu-latest
+    needs: [test-and-lint]
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: admin
+          MYSQL_DATABASE: perf_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -padmin"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+          --health-start-period=30s
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install root dependencies
+        run: npm install
+
+      - name: Install web dependencies
+        run: npm install
+        working-directory: web
+
+      - name: Install web-ui dependencies
+        run: npm install
+        working-directory: web-ui
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+        working-directory: web-ui
+
+      - name: Initialize test database schema
+        run: mysql -h 127.0.0.1 -P 3306 -u root -padmin perf_test < setup/01_ddl.sql
+
+      - name: Create .env
+        run: |
+          cat <<EOF > .env
+          DB_HOST=127.0.0.1
+          DB_PORT=3306
+          DB_USER=root
+          DB_PASSWORD=admin
+          DB_NAME=perf_test
+          ENCRYPTION_KEY=$(openssl rand -hex 32)
+          EOF
+
+      - name: Create parallel test SQL
+        run: |
+          mkdir -p parallel
+          echo "SELECT 1;" > parallel/01_simple_select.sql
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+        working-directory: web-ui
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: web-ui/test-results/
+          retention-days: 7
