@@ -204,45 +204,17 @@ export class MySQLPerformanceTester extends EventEmitter {
 
     /**
      * Execute a single query test (without warmup)
+     *
+     * Delegates to executeTestWithWarmup with warmup temporarily disabled.
      */
     async executeTest(testName: string, query: string): Promise<TestResult> {
-        this._assertInitialized();
-        console.log(`\n${'='.repeat(60)}`);
-        console.log(`テスト: ${testName}`);
-        console.log(`${'='.repeat(60)}`);
-
-        const testResult = new TestResult(testName, query);
-
-        console.log(`\n📊 測定開始 (${this.testConfig.testIterations}回)`);
-        const startTime = performance.now();
-
-        for (let i = 0; i < this.testConfig.testIterations; i++) {
-            const result = await this.executeSingleQuery(query);
-            testResult.addResult(result);
-
-            this.emit('progress', {
-                phase:    'measuring',
-                current:  i + 1,
-                total:    this.testConfig.testIterations,
-                duration: result.duration,
-            });
-
-            if ((i + 1) % Math.max(1, Math.floor(this.testConfig.testIterations / 5)) === 0) {
-                console.log(`   進捗: ${i + 1}/${this.testConfig.testIterations} (${((i + 1) / this.testConfig.testIterations * 100).toFixed(0)}%)`);
-            }
+        const originalWarmup = this.testConfig.enableWarmup;
+        this.testConfig.enableWarmup = false;
+        try {
+            return await this.executeTestWithWarmup(testName, query);
+        } finally {
+            this.testConfig.enableWarmup = originalWarmup;
         }
-
-        const totalDuration = performance.now() - startTime;
-        console.log(`✓ 測定完了 (所要時間: ${totalDuration.toFixed(2)}ms)\n`);
-
-        testResult.calculateStatistics(this.testConfig);
-
-        await this.runAnalysis(testResult, query);
-
-        this.testResults.push(testResult);
-        this.printTestSummary(testResult);
-
-        return testResult;
     }
 
     /**
