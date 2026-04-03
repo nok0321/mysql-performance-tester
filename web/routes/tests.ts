@@ -22,6 +22,7 @@ import type { WebSocketServer, WebSocket } from 'ws';
 
 import * as connectionStore from '../store/connections-store.js';
 import * as sqlStore from '../store/sql-store.js';
+import * as resultsStore from '../store/results-store.js';
 import { MySQLPerformanceTester } from '../../lib/testers/single-tester.js';
 import { ParallelPerformanceTester } from '../../lib/testers/parallel-tester.js';
 import { createDbConfig } from '../../lib/config/database-configuration.js';
@@ -291,11 +292,37 @@ router.post('/single', async (req: Request, res: Response) => {
       const fingerprint = fingerprintQuery(sqlText.trim());
       await fs.mkdir(RESULTS_DIR, { recursive: true });
       const resultPath = path.join(RESULTS_DIR, `${testId}.json`);
-      await fs.writeFile(resultPath, JSON.stringify({
+      const resultJson = JSON.stringify({
         testId, testName, result,
         queryFingerprint: fingerprint.hash,
         queryNormalized: fingerprint.normalized,
-      }, null, 2));
+      }, null, 2);
+      await fs.writeFile(resultPath, resultJson);
+
+      // Register metadata in SQLite store
+      const resultObj = result as unknown as Record<string, unknown>;
+      let explainAccessType: string | null = null;
+      try {
+        const explainData = (resultObj.explainAnalyze as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
+        if (explainData?.query_block) {
+          const qb = explainData.query_block as Record<string, unknown>;
+          const table = qb.table as Record<string, unknown> | undefined;
+          if (table?.access_type) explainAccessType = String(table.access_type);
+        }
+      } catch { /* ignore */ }
+
+      resultsStore.create({
+        id: testId,
+        type: 'single',
+        testName,
+        queryFingerprint: fingerprint.hash,
+        queryNormalized: fingerprint.normalized,
+        queryText: sqlText.trim(),
+        filePath: `${testId}.json`,
+        fileSize: Buffer.byteLength(resultJson, 'utf8'),
+        statistics: (resultObj.statistics as resultsStore.ResultInput['statistics']) || null,
+        explainAccessType,
+      });
 
       broadcast(wss, testId, 'complete', {
         testId,
@@ -409,7 +436,17 @@ router.post('/parallel', async (req: Request, res: Response) => {
 
       await fs.mkdir(RESULTS_DIR, { recursive: true });
       const resultPath = path.join(RESULTS_DIR, `${testId}.json`);
-      await fs.writeFile(resultPath, JSON.stringify({ testId, testName, results }, null, 2));
+      const parallelJson = JSON.stringify({ testId, testName, results }, null, 2);
+      await fs.writeFile(resultPath, parallelJson);
+
+      // Register metadata in SQLite store
+      resultsStore.create({
+        id: testId,
+        type: 'parallel',
+        testName,
+        filePath: `${testId}.json`,
+        fileSize: Buffer.byteLength(parallelJson, 'utf8'),
+      });
 
       broadcast(wss, testId, 'complete', { testId, testName, results });
 
@@ -509,12 +546,22 @@ router.post('/comparison', async (req: Request, res: Response) => {
         const fpB = fingerprintQuery(sqlTextB.trim());
         await fs.mkdir(RESULTS_DIR, { recursive: true });
         const resultPath = path.join(RESULTS_DIR, `${testId}.json`);
-        await fs.writeFile(resultPath, JSON.stringify({
+        const comparisonJson = JSON.stringify({
           type: 'comparison', testId, executionMode,
           testNameA, testNameB,
           queryFingerprintA: fpA.hash, queryFingerprintB: fpB.hash,
           resultA, resultB, delta,
-        }, null, 2));
+        }, null, 2);
+        await fs.writeFile(resultPath, comparisonJson);
+
+        // Register metadata in SQLite store
+        resultsStore.create({
+          id: testId,
+          type: 'comparison',
+          testName: `${testNameA} vs ${testNameB}`,
+          filePath: `${testId}.json`,
+          fileSize: Buffer.byteLength(comparisonJson, 'utf8'),
+        });
 
         broadcast(wss, testId, 'complete', {
           testId, executionMode, testNameA, testNameB,
@@ -544,12 +591,22 @@ router.post('/comparison', async (req: Request, res: Response) => {
         const fpB = fingerprintQuery(sqlTextB.trim());
         await fs.mkdir(RESULTS_DIR, { recursive: true });
         const resultPath = path.join(RESULTS_DIR, `${testId}.json`);
-        await fs.writeFile(resultPath, JSON.stringify({
+        const comparisonJson = JSON.stringify({
           type: 'comparison', testId, executionMode,
           testNameA, testNameB,
           queryFingerprintA: fpA.hash, queryFingerprintB: fpB.hash,
           resultA, resultB, delta,
-        }, null, 2));
+        }, null, 2);
+        await fs.writeFile(resultPath, comparisonJson);
+
+        // Register metadata in SQLite store
+        resultsStore.create({
+          id: testId,
+          type: 'comparison',
+          testName: `${testNameA} vs ${testNameB}`,
+          filePath: `${testId}.json`,
+          fileSize: Buffer.byteLength(comparisonJson, 'utf8'),
+        });
 
         broadcast(wss, testId, 'complete', {
           testId, executionMode, testNameA, testNameB,
@@ -569,28 +626,25 @@ router.post('/comparison', async (req: Request, res: Response) => {
   });
 });
 
-// ─── Results list ────────────────────────────────────────────────────────
+// ─── Results list (from SQLite store) ────────────────────────────────────
 router.get('/results', asyncHandler(async (req: Request, res: Response) => {
-  await fs.mkdir(RESULTS_DIR, { recursive: true });
-  const files = await fs.readdir(RESULTS_DIR);
-  const jsonFiles = files.filter(f => f.endsWith('.json'));
-
-  const results = await Promise.all(
-    jsonFiles.map(async file => {
-      const stat = await fs.stat(path.join(RESULTS_DIR, file));
-      return {
-        id: file.replace('.json', ''),
-        fileName: file,
-        createdAt: stat.mtime.toISOString(),
-        size: stat.size
-      };
-    })
-  );
-
-  results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
   const { limit, offset } = parsePagination(req);
-  res.json(paginate(results, limit, offset));
+  const page = Math.floor(offset / limit) + 1;
+
+  const { data, total } = resultsStore.getAll({ page, limit });
+
+  const results = data.map(r => ({
+    id: r.id,
+    fileName: r.filePath,
+    createdAt: r.createdAt,
+    size: r.fileSize,
+  }));
+
+  res.json({
+    success: true,
+    data: results,
+    pagination: { total, limit, offset },
+  });
 }));
 
 // ─── Result detail ───────────────────────────────────────────────────────
