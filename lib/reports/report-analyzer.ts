@@ -16,7 +16,7 @@ interface OverallMetrics {
     avgQPS: string | null;
 }
 
-interface ReportSummary {
+export interface ReportSummary {
     testCount: TestCount;
     overallMetrics: OverallMetrics;
     performanceGrade: string;
@@ -131,7 +131,7 @@ interface ParallelResultsData {
     [key: string]: unknown;
 }
 
-interface TestResultInput {
+export interface TestResultInput {
     testName: string;
     query?: string;
     timestamp?: string;
@@ -145,7 +145,7 @@ interface TestResultInput {
     [key: string]: unknown;
 }
 
-interface TestAnalysis {
+export interface TestAnalysis {
     testName: string;
     query?: string;
     timestamp?: string;

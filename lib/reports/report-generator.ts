@@ -4,10 +4,10 @@
  */
 
 import { ReportAnalyzer } from './report-analyzer.js';
+import type { ReportSummary, TestResultInput, TestAnalysis } from './report-analyzer.js';
 import { RecommendationEngine } from './recommendation-engine.js';
+import type { RecommendationItem, InternalReportData } from './recommendation-engine.js';
 import { BaseExporter } from './exporters/base-exporter.js';
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 interface ReportMetadata {
     generatedAt: string;
@@ -15,27 +15,27 @@ interface ReportMetadata {
     configuration: Record<string, unknown>;
 }
 
-interface ReportData {
+export interface ReportData {
     metadata: ReportMetadata;
-    summary: any;
-    details: any[];
-    recommendations: any[];
+    summary: ReportSummary | null;
+    details: TestAnalysis[];
+    recommendations: RecommendationItem[];
 }
 
 interface ReportGeneratorDeps {
     analyzer?: ReportAnalyzer;
-    recommendationEngineFactory?: (reportData: any) => RecommendationEngine;
+    recommendationEngineFactory?: (reportData: InternalReportData) => RecommendationEngine;
 }
 
 /**
  * Report generator class
  */
 export class ReportGenerator {
-    testResults: any[];
+    testResults: TestResultInput[];
     config: Record<string, unknown>;
     reportData: ReportData;
     analyzer: ReportAnalyzer;
-    private _recommendationEngineFactory: (reportData: any) => RecommendationEngine;
+    private _recommendationEngineFactory: (reportData: InternalReportData) => RecommendationEngine;
     private _analyzed: boolean;
 
     /**
@@ -43,8 +43,8 @@ export class ReportGenerator {
      * @param config - Plain object returned by createTestConfig()
      * @param deps - Dependency injection (for testing/customization)
      */
-    constructor(testResults: any[], config: Record<string, unknown>, deps: ReportGeneratorDeps = {}) {
-        this.testResults = testResults;
+    constructor(testResults: unknown[], config: Record<string, unknown>, deps: ReportGeneratorDeps = {}) {
+        this.testResults = testResults as TestResultInput[];
         this.config = config;
         this.reportData = {
             metadata: {
@@ -56,9 +56,9 @@ export class ReportGenerator {
             details: [],
             recommendations: []
         };
-        this.analyzer = deps.analyzer ?? new ReportAnalyzer(testResults, config);
+        this.analyzer = deps.analyzer ?? new ReportAnalyzer(this.testResults, config);
         this._recommendationEngineFactory =
-            deps.recommendationEngineFactory ?? ((reportData: any) => new RecommendationEngine(reportData));
+            deps.recommendationEngineFactory ?? ((reportData: InternalReportData) => new RecommendationEngine(reportData));
         this._analyzed = false;
     }
 
@@ -78,7 +78,9 @@ export class ReportGenerator {
         }
 
         // Generate recommendations
-        const recommendationEngine = this._recommendationEngineFactory(this.reportData);
+        const recommendationEngine = this._recommendationEngineFactory(
+            this.reportData as unknown as InternalReportData
+        );
         this.reportData.recommendations = recommendationEngine.generateRecommendations();
 
         this._analyzed = true;
@@ -122,21 +124,21 @@ export class ReportGenerator {
     /**
      * Get summary
      */
-    getSummary(): any {
+    getSummary(): ReportSummary | null {
         return this.reportData.summary;
     }
 
     /**
      * Get recommendations
      */
-    getRecommendations(): any[] {
+    getRecommendations(): RecommendationItem[] {
         return this.reportData.recommendations;
     }
 
     /**
      * Get test details
      */
-    getTestDetails(): any[] {
+    getTestDetails(): TestAnalysis[] {
         return this.reportData.details;
     }
 }

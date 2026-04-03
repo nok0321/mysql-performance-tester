@@ -3,7 +3,7 @@
  * Generates recommendations based on test results
  */
 
-interface RecommendationItem {
+export interface RecommendationItem {
     priority: string;
     category: string;
     title: string;
@@ -57,7 +57,7 @@ interface ReportSummary {
     [key: string]: unknown;
 }
 
-interface InternalReportData {
+export interface InternalReportData {
     summary: ReportSummary;
     details: ReportDetail[];
     recommendations?: RecommendationItem[];
