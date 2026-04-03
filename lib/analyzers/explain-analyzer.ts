@@ -1,6 +1,9 @@
 /**
  * EXPLAIN analysis class
  * Handles execution and analysis of EXPLAIN and EXPLAIN ANALYZE (MySQL 8.0.18+)
+ *
+ * This is the single authoritative implementation for EXPLAIN ANALYZE.
+ * Other modules should delegate here instead of duplicating the logic.
  */
 
 import type { RowDataPacket } from 'mysql2/promise';
@@ -34,6 +37,11 @@ export class ExplainAnalyzer extends BaseAnalyzer {
 
     /**
      * Execute EXPLAIN ANALYZE (MySQL 8.0.18+)
+     *
+     * Uses a dedicated connection from the pool for the entire sequence so that
+     * the session variable SET @@explain_json_format_version does not leak into
+     * the shared pool.
+     *
      * @param query - The query to analyze
      * @returns EXPLAIN ANALYZE result, or null if unsupported or on error
      */
@@ -42,17 +50,20 @@ export class ExplainAnalyzer extends BaseAnalyzer {
             return null;
         }
 
+        const conn = await this.connection.getConnection();
         try {
-            const [rows] = await this.connection.query(`EXPLAIN ANALYZE ${query}`) as [RowDataPacket[], unknown];
+            const [rows] = await conn.query<RowDataPacket[]>(`EXPLAIN ANALYZE ${query}`);
 
-            // Check if MySQL 8.3+ supports JSON format
+            // Attempt JSON format output (MySQL 8.3+ with explain_json_format_version = 2).
+            // Both SET and the subsequent EXPLAIN run on the same dedicated connection
+            // so the session variable is isolated and released with the connection.
             let jsonResult: Record<string, unknown> | null = null;
             try {
-                await this.connection.query('SET @@explain_json_format_version = 2');
-                const [jsonRows] = await this.connection.query(`EXPLAIN ANALYZE FORMAT=JSON ${query}`) as [RowDataPacket[], unknown];
+                await conn.query('SET @@explain_json_format_version = 2');
+                const [jsonRows] = await conn.query<RowDataPacket[]>(`EXPLAIN ANALYZE FORMAT=JSON ${query}`);
                 jsonResult = JSON.parse((jsonRows[0]['EXPLAIN'] as string).replace(/\/\*[\s\S]*?\*\//g, '')) as Record<string, unknown>;
             } catch (_jsonError) {
-                // Ignore if JSON format is not available
+                // JSON format not available on this MySQL version -- ignore
             }
 
             return {
@@ -64,6 +75,8 @@ export class ExplainAnalyzer extends BaseAnalyzer {
         } catch (error) {
             console.warn(`EXPLAIN ANALYZE execution error: ${(error as Error).message}`);
             return null;
+        } finally {
+            conn.release();
         }
     }
 }

@@ -22,7 +22,7 @@ import { ExplainAnalyzer, OptimizerTraceAnalyzer, PerformanceSchemaAnalyzer, Buf
 import { WarmupManager } from '../warmup/index.js';
 import type { WarmupSummary } from '../warmup/warmup-manager.js';
 import { FileManager } from '../storage/file-manager.js';
-import type { DbConfig, TestConfig, ExplainAnalyzeResult } from '../types/index.js';
+import type { DbConfig, TestConfig } from '../types/index.js';
 
 /** Analyzers container */
 interface Analyzers {
@@ -258,13 +258,12 @@ export class MySQLPerformanceTester extends EventEmitter {
         testResult.explainAnalyze = await this.analyzers!.explain.analyzeQuery(query);
 
         // EXPLAIN ANALYZE (MySQL 8.0.18+)
+        // When available, the EXPLAIN ANALYZE result replaces the plain EXPLAIN result
+        // because it is a strict superset (includes actual execution metrics).
         if (this.testConfig.enableExplainAnalyze && this.db!.isExplainAnalyzeSupported()) {
             const explainAnalyzeResult = await this.analyzers!.explain.analyzeQueryWithExecution(query);
-            if (explainAnalyzeResult && testResult.explainAnalyze) {
-                testResult.explainAnalyze = {
-                    ...testResult.explainAnalyze,
-                    ...explainAnalyzeResult,
-                } as ExplainAnalyzeResult;
+            if (explainAnalyzeResult) {
+                testResult.explainAnalyze = explainAnalyzeResult;
                 await this.fileManager.saveExplainAnalyze({ ...explainAnalyzeResult }, testResult.testName);
             }
         }
