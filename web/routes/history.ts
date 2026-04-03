@@ -14,118 +14,39 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { fingerprintQuery } from '../../lib/utils/query-fingerprint.js';
 import { computeComparisonDelta } from '../../lib/utils/comparison-delta.js';
 import * as eventsStore from '../store/events-store.js';
+import * as resultsStore from '../store/results-store.js';
 import { asyncHandler } from '../middleware/async-handler.js';
 import { parsePagination, paginate } from '../middleware/pagination.js';
-import type { QueryFingerprintSummary, QueryHistoryEntry, QueryEventType, StatisticsResult } from '../../lib/types/index.js';
+import type { QueryFingerprintSummary, QueryHistoryEntry, QueryEventType } from '../../lib/types/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RESULTS_DIR: string = path.join(__dirname, '..', '..', 'performance_results');
 
 const router: Router = Router();
 
-// ─── Helpers ────────────────────────────────────────────────────────────
-
-interface ParsedSingleResult {
-  testId: string;
-  testName: string;
-  queryFingerprint?: string;
-  queryNormalized?: string;
-  result: {
-    query?: string;
-    timestamp?: string;
-    statistics?: StatisticsResult;
-    explainAnalyze?: { data?: Record<string, unknown> };
-    [key: string]: unknown;
-  };
-}
-
-/**
- * Scan performance_results/ and return parsed single-test results.
- * Parallel and comparison results are excluded (they use different shapes).
- */
-async function loadSingleResults(): Promise<ParsedSingleResult[]> {
-  await fs.mkdir(RESULTS_DIR, { recursive: true });
-  const files = await fs.readdir(RESULTS_DIR);
-  const jsonFiles = files.filter(f => f.startsWith('test_') && f.endsWith('.json'));
-
-  const results: ParsedSingleResult[] = [];
-
-  await Promise.all(jsonFiles.map(async (file) => {
-    try {
-      const raw = await fs.readFile(path.join(RESULTS_DIR, file), 'utf8');
-      const data = JSON.parse(raw) as ParsedSingleResult;
-      if (data.result) results.push(data);
-    } catch {
-      // Skip malformed files
-    }
-  }));
-
-  return results;
-}
-
-/**
- * Resolve the fingerprint for a result.
- * Uses the stored queryFingerprint if available, otherwise computes lazily.
- */
-function resolveFingerprint(r: ParsedSingleResult): string | null {
-  if (r.queryFingerprint) return r.queryFingerprint;
-  const sql = r.result?.query;
-  if (!sql) return null;
-  return fingerprintQuery(sql).hash;
-}
-
 // ─── GET /fingerprints ──────────────────────────────────────────────────
 
 router.get('/fingerprints', asyncHandler(async (req: Request, res: Response) => {
-  const results = await loadSingleResults();
-
-  // Group by fingerprint
-  const map = new Map<string, {
-    queryText: string;
-    latestTestName: string;
-    latestRunAt: string;
-    runCount: number;
-  }>();
-
-  for (const r of results) {
-    const fp = resolveFingerprint(r);
-    if (!fp) continue;
-
-    const timestamp = r.result.timestamp || '';
-    const existing = map.get(fp);
-
-    if (!existing) {
-      map.set(fp, {
-        queryText: r.result.query || '',
-        latestTestName: r.testName || '',
-        latestRunAt: timestamp,
-        runCount: 1,
-      });
-    } else {
-      existing.runCount++;
-      if (timestamp > existing.latestRunAt) {
-        existing.latestRunAt = timestamp;
-        existing.latestTestName = r.testName || '';
-        existing.queryText = r.result.query || existing.queryText;
-      }
-    }
-  }
-
-  const summaries: QueryFingerprintSummary[] = Array.from(map.entries())
-    .map(([queryFingerprint, v]) => ({
-      queryFingerprint,
-      queryText: v.queryText,
-      latestTestName: v.latestTestName,
-      runCount: v.runCount,
-      latestRunAt: v.latestRunAt,
-    }))
-    .sort((a, b) => b.latestRunAt.localeCompare(a.latestRunAt));
-
   const { limit, offset } = parsePagination(req);
-  res.json(paginate(summaries, limit, offset));
+  const page = Math.floor(offset / limit) + 1;
+
+  const { data, total } = resultsStore.getFingerprints({ page, limit });
+
+  const summaries: QueryFingerprintSummary[] = data.map(fp => ({
+    queryFingerprint: fp.queryFingerprint,
+    queryText: fp.queryText,
+    latestTestName: fp.latestTestName,
+    runCount: fp.runCount,
+    latestRunAt: fp.latestRunAt,
+  }));
+
+  res.json({
+    success: true,
+    data: summaries,
+    pagination: { total, limit, offset },
+  });
 }));
 
 // ─── GET /:fingerprint ──────────────────────────────────────────────────
@@ -137,39 +58,23 @@ router.get('/:fingerprint', asyncHandler(async (req: Request, res: Response) => 
     return;
   }
 
-  const results = await loadSingleResults();
-  const entries: QueryHistoryEntry[] = [];
+  const records = resultsStore.getByFingerprint(fp);
   let queryText = '';
 
-  for (const r of results) {
-    const rFp = resolveFingerprint(r);
-    if (rFp !== fp) continue;
+  const entries: QueryHistoryEntry[] = [];
+  for (const r of records) {
+    if (!queryText && r.queryText) queryText = r.queryText;
 
-    if (!queryText && r.result.query) queryText = r.result.query;
-
-    // Extract EXPLAIN access type if available
-    let explainAccessType: string | undefined;
-    try {
-      const explainData = r.result.explainAnalyze?.data as Record<string, unknown> | undefined;
-      if (explainData?.query_block) {
-        const qb = explainData.query_block as Record<string, unknown>;
-        const table = qb.table as Record<string, unknown> | undefined;
-        if (table?.access_type) explainAccessType = String(table.access_type);
-      }
-    } catch { /* ignore */ }
-
-    if (r.result.statistics) {
+    if (r.statistics) {
       entries.push({
-        testId: r.testId,
+        testId: r.id,
         testName: r.testName,
-        timestamp: r.result.timestamp || '',
-        statistics: r.result.statistics,
-        explainAccessType,
+        timestamp: r.createdAt,
+        statistics: r.statistics,
+        explainAccessType: r.explainAccessType || undefined,
       });
     }
   }
-
-  entries.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
   const events = await eventsStore.listByFingerprint(fp);
 
@@ -192,34 +97,42 @@ router.get('/:fingerprint/compare', asyncHandler(async (req: Request, res: Respo
     return;
   }
 
-  // Read both result files
-  async function readStats(testId: string) {
-    const filePath = path.join(RESULTS_DIR, `${testId}.json`);
-    const raw = await fs.readFile(filePath, 'utf8');
-    const data = JSON.parse(raw) as ParsedSingleResult;
-    return data.result?.statistics;
-  }
+  // Try store first, fall back to disk for statistics
+  const recordBefore = resultsStore.getById(before);
+  const recordAfter = resultsStore.getById(after);
 
-  try {
-    const [statsBefore, statsAfter] = await Promise.all([
-      readStats(before),
-      readStats(after),
-    ]);
+  let statsBefore = recordBefore?.statistics || null;
+  let statsAfter = recordAfter?.statistics || null;
 
-    if (!statsBefore || !statsAfter) {
-      res.status(400).json({ success: false, error: '統計データが見つかりません' });
-      return;
+  // Fall back to reading from disk if statistics not in store
+  if (!statsBefore || !statsAfter) {
+    async function readStats(testId: string) {
+      const filePath = path.join(RESULTS_DIR, `${testId}.json`);
+      const raw = await fs.readFile(filePath, 'utf8');
+      const data = JSON.parse(raw) as { result?: { statistics?: unknown } };
+      return data.result?.statistics;
     }
 
-    const delta = computeComparisonDelta(statsBefore, statsAfter);
-
-    res.json({
-      success: true,
-      data: { before: statsBefore, after: statsAfter, delta },
-    });
-  } catch {
-    res.status(404).json({ success: false, error: '結果ファイルが見つかりません' });
+    try {
+      if (!statsBefore) statsBefore = (await readStats(before)) as typeof statsBefore;
+      if (!statsAfter) statsAfter = (await readStats(after)) as typeof statsAfter;
+    } catch {
+      res.status(404).json({ success: false, error: '結果ファイルが見つかりません' });
+      return;
+    }
   }
+
+  if (!statsBefore || !statsAfter) {
+    res.status(400).json({ success: false, error: '統計データが見つかりません' });
+    return;
+  }
+
+  const delta = computeComparisonDelta(statsBefore, statsAfter);
+
+  res.json({
+    success: true,
+    data: { before: statsBefore, after: statsAfter, delta },
+  });
 }));
 
 // ─── POST /events ───────────────────────────────────────────────────────

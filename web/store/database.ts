@@ -62,6 +62,28 @@ function createTables(db: DatabaseType): void {
 
     CREATE INDEX IF NOT EXISTS idx_query_events_fingerprint
       ON query_events (query_fingerprint);
+
+    CREATE TABLE IF NOT EXISTS test_results (
+      id                  TEXT PRIMARY KEY,
+      type                TEXT NOT NULL DEFAULT 'single',
+      test_name           TEXT NOT NULL DEFAULT '',
+      query_fingerprint   TEXT,
+      query_normalized    TEXT,
+      query_text          TEXT,
+      file_path           TEXT NOT NULL,
+      file_size           INTEGER DEFAULT 0,
+      statistics_json     TEXT,
+      explain_access_type TEXT,
+      created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_test_results_fingerprint
+      ON test_results (query_fingerprint);
+    CREATE INDEX IF NOT EXISTS idx_test_results_type
+      ON test_results (type);
+    CREATE INDEX IF NOT EXISTS idx_test_results_created
+      ON test_results (created_at);
   `);
 
   // Initialize schema version if not set
@@ -197,6 +219,84 @@ function migrateFromJson(db: DatabaseType, dataDir: string): void {
 }
 
 /**
+ * Sync existing performance_results/ JSON files into the test_results table.
+ * Called on every startup to catch files created outside the Web UI (e.g., CLI).
+ * Uses INSERT OR IGNORE to skip already-registered files.
+ */
+export function syncResultsFromDisk(db: DatabaseType, resultsDir: string): number {
+  if (!fs.existsSync(resultsDir)) return 0;
+
+  const entries = fs.readdirSync(resultsDir, { withFileTypes: true });
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO test_results
+      (id, type, test_name, query_fingerprint, query_normalized, query_text, file_path, file_size, statistics_json, explain_access_type, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  let synced = 0;
+
+  const syncAll = db.transaction(() => {
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        // Batch result directory
+        const batchFile = path.join(resultsDir, entry.name, 'results.json');
+        if (!fs.existsSync(batchFile)) continue;
+        try {
+          const stat = fs.statSync(batchFile);
+          const now = stat.mtime.toISOString();
+          const r = insert.run(entry.name, 'batch', entry.name, null, null, null, `${entry.name}/results.json`, stat.size, null, null, now, now);
+          if (r.changes > 0) synced++;
+        } catch { /* skip malformed */ }
+      } else if (entry.name.endsWith('.json')) {
+        const id = entry.name.replace('.json', '');
+        let type = 'single';
+        if (entry.name.startsWith('parallel_')) type = 'parallel';
+        else if (entry.name.startsWith('comparison_')) type = 'comparison';
+        else if (!entry.name.startsWith('test_')) continue;
+
+        try {
+          const filePath = path.join(resultsDir, entry.name);
+          const stat = fs.statSync(filePath);
+          const raw = fs.readFileSync(filePath, 'utf8');
+          const data = JSON.parse(raw) as Record<string, unknown>;
+
+          const testName = (data.testName as string) || (data.testId as string) || '';
+          const queryFingerprint = (data.queryFingerprint as string) || null;
+          const queryNormalized = (data.queryNormalized as string) || null;
+
+          // Extract query text and statistics from result
+          const result = data.result as Record<string, unknown> | undefined;
+          const queryText = (result?.query as string) || null;
+          const statistics = result?.statistics ? JSON.stringify(result.statistics) : null;
+
+          // Extract EXPLAIN access type
+          let explainAccessType: string | null = null;
+          try {
+            const explainData = (result?.explainAnalyze as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
+            if (explainData?.query_block) {
+              const qb = explainData.query_block as Record<string, unknown>;
+              const table = qb.table as Record<string, unknown> | undefined;
+              if (table?.access_type) explainAccessType = String(table.access_type);
+            }
+          } catch { /* ignore */ }
+
+          const now = stat.mtime.toISOString();
+          const r = insert.run(id, type, testName, queryFingerprint, queryNormalized, queryText, entry.name, stat.size, statistics, explainAccessType, now, now);
+          if (r.changes > 0) synced++;
+        } catch { /* skip malformed */ }
+      }
+    }
+  });
+
+  syncAll();
+
+  if (synced > 0) {
+    console.log(`[Database] Synced ${synced} result file(s) from disk`);
+  }
+  return synced;
+}
+
+/**
  * Initialize the SQLite database.
  * @param dbPath - Optional path override (use ':memory:' for tests)
  * @param dataDir - Optional data directory override (for migration source)
@@ -221,6 +321,10 @@ export function initDb(dbPath?: string, dataDir?: string): DatabaseType {
 
   createTables(db);
   migrateFromJson(db, resolvedDataDir);
+
+  // Sync performance_results/ into test_results table
+  const resultsDir = path.resolve(path.dirname(resolvedDataDir), 'performance_results');
+  syncResultsFromDisk(db, resultsDir);
 
   _db = db;
   return db;
