@@ -56,8 +56,8 @@ export class StatisticsCalculator {
             : 0;
         const stdDev = Math.sqrt(variance);
 
-        // Coefficient of Variation
-        const cv = (stdDev / mean) * 100;
+        // Coefficient of Variation (guard against mean === 0)
+        const cv = mean !== 0 ? (stdDev / mean) * 100 : 0;
 
         // Percentiles
         const percentiles: Percentiles = {

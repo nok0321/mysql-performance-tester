@@ -57,6 +57,27 @@ describe('DistributionAnalyzer', () => {
         });
     });
 
+    describe('calculateDistribution - edge cases', () => {
+        it('handles all-identical values without division by zero', () => {
+            const data = [7, 7, 7, 7, 7];
+            const result = DistributionAnalyzer.calculateDistribution(data);
+
+            expect(result.binCount).toBe(1);
+            expect(result.binWidth).toBe(0);
+            expect(result.bins.length).toBe(1);
+            expect(result.bins[0].count).toBe(5);
+            expect(result.bins[0].percentage).toBe(100);
+        });
+
+        it('handles single-element array', () => {
+            const result = DistributionAnalyzer.calculateDistribution([42]);
+
+            expect(result.binCount).toBe(1);
+            expect(result.bins[0].count).toBe(1);
+            expect(result.bins[0].percentage).toBe(100);
+        });
+    });
+
     describe('round', () => {
         it('rounds correctly', () => {
             expect(round(3.14159, 2)).toBe(3.14);

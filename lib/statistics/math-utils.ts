@@ -17,6 +17,21 @@ export function round(value: number, decimals: number): number | null {
 }
 
 /**
+ * Calculate sample standard deviation using Bessel's correction (N-1)
+ * Returns 0 for arrays with fewer than 2 elements or when all values are identical
+ * @param values - Numeric array
+ * @returns Sample standard deviation
+ */
+export function sampleStdDev(values: number[]): number {
+    if (values.length < 2) {
+        return 0;
+    }
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    const sumSquaredDev = values.reduce((s, val) => s + Math.pow(val - mean, 2), 0);
+    return Math.sqrt(sumSquaredDev / (values.length - 1));
+}
+
+/**
  * Calculate a percentile from a pre-sorted numeric array using linear interpolation
  * @param sortedArray - Pre-sorted numeric array
  * @param percentile - Percentile value (0-100)

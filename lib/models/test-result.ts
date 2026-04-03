@@ -13,6 +13,7 @@
  */
 
 import { StatisticsCalculator } from '../statistics/statistics-calculator.js';
+import { sampleStdDev } from '../statistics/math-utils.js';
 import type {
     StatisticsResult,
     BufferPoolAnalysisResult,
@@ -173,9 +174,7 @@ export class TestResult {
         const avg = durations.reduce((a, b) => a + b, 0) / durations.length;
         const min = Math.min(...durations);
         const max = Math.max(...durations);
-        const stdDev = Math.sqrt(
-            durations.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / durations.length
-        );
+        const stdDev = sampleStdDev(durations);
 
         return {
             success: successResults.length,

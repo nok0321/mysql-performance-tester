@@ -21,6 +21,21 @@ export class DistributionAnalyzer {
 
         const min = sortedArray[0];
         const max = sortedArray[sortedArray.length - 1];
+
+        // Guard: all values identical — return single bin
+        if (max === min) {
+            return {
+                bins: [{
+                    start: round(min, 3)!,
+                    end: round(min, 3)!,
+                    count: sortedArray.length,
+                    percentage: 100
+                }],
+                binCount: 1,
+                binWidth: 0
+            };
+        }
+
         const binWidth = (max - min) / binCount;
 
         const bins: DistributionBin[] = Array(binCount).fill(0).map((_, i) => ({

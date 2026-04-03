@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { StatisticsCalculator } from '../../lib/statistics/statistics-calculator.js';
-import { round, calculatePercentile } from '../../lib/statistics/math-utils.js';
+import { round, calculatePercentile, sampleStdDev } from '../../lib/statistics/math-utils.js';
 
 describe('StatisticsCalculator', () => {
     describe('calculate', () => {
@@ -107,6 +107,26 @@ describe('StatisticsCalculator', () => {
             expect(result!.basic.min).toBe(1);
             expect(result!.basic.max).toBe(5);
         });
+
+        it('handles all-identical values (CV should be 0, no division by zero)', () => {
+            const data = [5, 5, 5, 5, 5];
+            const result = StatisticsCalculator.calculate(data);
+
+            expect(result!.basic.mean).toBe(5);
+            expect(result!.spread.variance).toBe(0);
+            expect(result!.spread.stdDev).toBe(0);
+            expect(result!.spread.cv).toBe(0);
+            expect(Number.isFinite(result!.spread.cv)).toBe(true);
+        });
+
+        it('handles all-zero values (CV should be 0)', () => {
+            const data = [0, 0, 0, 0, 0];
+            const result = StatisticsCalculator.calculate(data);
+
+            expect(result!.basic.mean).toBe(0);
+            expect(result!.spread.cv).toBe(0);
+            expect(Number.isFinite(result!.spread.cv)).toBe(true);
+        });
     });
 
     describe('calculatePercentile', () => {
@@ -135,6 +155,27 @@ describe('StatisticsCalculator', () => {
         it('handles P0 and P100', () => {
             expect(calculatePercentile([1, 2, 3], 0)).toBe(1);
             expect(calculatePercentile([1, 2, 3], 100)).toBe(3);
+        });
+    });
+
+    describe('sampleStdDev', () => {
+        it('returns 0 for empty array', () => {
+            expect(sampleStdDev([])).toBe(0);
+        });
+
+        it('returns 0 for single element', () => {
+            expect(sampleStdDev([42])).toBe(0);
+        });
+
+        it('returns 0 for all-identical values', () => {
+            expect(sampleStdDev([5, 5, 5, 5])).toBe(0);
+        });
+
+        it('uses Bessel correction (N-1)', () => {
+            // [2, 4, 4, 4, 5, 5, 7, 9] — mean = 5, sum of sq dev = 32
+            // Sample stdDev = sqrt(32/7) ≈ 2.138
+            const result = sampleStdDev([2, 4, 4, 4, 5, 5, 7, 9]);
+            expect(result).toBeCloseTo(Math.sqrt(32 / 7), 10);
         });
     });
 

@@ -77,6 +77,15 @@ describe('OutlierDetector', () => {
         });
     });
 
+    describe('removeOutliersZScore - edge cases', () => {
+        it('handles all-identical values without division by zero', () => {
+            const data = [5, 5, 5, 5, 5];
+            const result = OutlierDetector.removeOutliersZScore(data);
+            expect(result.filtered).toEqual(data);
+            expect(result.outliers).toEqual([]);
+        });
+    });
+
     describe('removeOutliersMAD', () => {
         it('keeps normal data intact', () => {
             const result = OutlierDetector.removeOutliersMAD(normalData);
@@ -86,6 +95,13 @@ describe('OutlierDetector', () => {
         it('detects extreme outliers', () => {
             const result = OutlierDetector.removeOutliersMAD(dataWithOutlier);
             expect(result.outliers).toContain(100);
+        });
+
+        it('handles all-identical values without division by zero', () => {
+            const data = [3, 3, 3, 3, 3];
+            const result = OutlierDetector.removeOutliersMAD(data);
+            expect(result.filtered).toEqual(data);
+            expect(result.outliers).toEqual([]);
         });
     });
 
