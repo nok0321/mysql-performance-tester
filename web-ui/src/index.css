@@ -174,6 +174,46 @@ body {
 .ws-badge.connected { background: rgba(63,185,80,.15); color: var(--color-success); }
 .ws-badge.disconnected { background: rgba(248,81,73,.15); color: var(--color-danger); }
 
+/* ─── Hamburger button (hidden on desktop) ───────────────── */
+.hamburger-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--radius);
+  flex-shrink: 0;
+}
+.hamburger-btn:hover { background: var(--color-surface-2); }
+.hamburger-icon {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: var(--color-text);
+  position: relative;
+}
+.hamburger-icon::before,
+.hamburger-icon::after {
+  content: '';
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: var(--color-text);
+  position: absolute;
+  left: 0;
+}
+.hamburger-icon::before { top: -6px; }
+.hamburger-icon::after  { top:  6px; }
+
+/* ─── Sidebar overlay (mobile only) ─────────────────────── */
+.sidebar-overlay {
+  display: none;
+}
+
 .page-content {
   flex: 1;
   overflow-y: auto;
@@ -545,4 +585,47 @@ tbody td { padding: var(--space-3) var(--space-4); vertical-align: middle; }
 }
 :focus:not(:focus-visible) {
   outline: none;
+}
+
+/* ============================================================
+   Mobile Responsive Layout (< 768px)
+   ============================================================ */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: calc(-1 * var(--sidebar-w));
+    height: 100vh;
+    z-index: 100;
+    transition: left 0.3s ease;
+  }
+  .sidebar.sidebar--open {
+    left: 0;
+  }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99;
+  }
+
+  .hamburger-btn {
+    display: flex;
+  }
+
+  .main-area {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .page-content {
+    padding: var(--space-4);
+  }
+
+  .topbar {
+    padding: 0 var(--space-4);
+    gap: var(--space-3);
+  }
 }

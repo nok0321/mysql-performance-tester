@@ -19,7 +19,8 @@
     "logoSub": "Performance Tester",
     "wsConnected": "WS Connected",
     "wsDisconnected": "WS Disconnected",
-    "defaultTitle": "MySQL Performance Tester"
+    "defaultTitle": "MySQL Performance Tester",
+    "menuToggle": "Toggle navigation menu"
   },
   "pageMeta": {
     "connections": { "title": "Connections", "subtitle": "Register and test MySQL connections" },
