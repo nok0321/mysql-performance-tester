@@ -3,7 +3,7 @@
  * Detects and removes outliers using multiple statistical methods
  */
 
-import { round, calculatePercentile } from './math-utils.js';
+import { round, calculatePercentile, sampleStdDev } from './math-utils.js';
 
 interface OutlierResult {
     filtered: number[];
@@ -78,12 +78,14 @@ export class OutlierDetector {
      * @returns Filtered data with outlier information
      */
     static removeOutliersZScore(sortedArray: number[], threshold: number = 3): OutlierResult {
-        const mean = sortedArray.reduce((a, b) => a + b, 0) / sortedArray.length;
-        const stdDev = Math.sqrt(
-            sortedArray.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) /
-            sortedArray.length
-        );
+        const stdDev = sampleStdDev(sortedArray);
 
+        // If stdDev is 0 (all values identical), no outliers possible
+        if (stdDev === 0) {
+            return { filtered: [...sortedArray], outliers: [] };
+        }
+
+        const mean = sortedArray.reduce((a, b) => a + b, 0) / sortedArray.length;
         const filtered: number[] = [];
         const outliers: number[] = [];
 
@@ -109,6 +111,11 @@ export class OutlierDetector {
         const median = calculatePercentile(sortedArray, 50)!;
         const deviations = sortedArray.map(val => Math.abs(val - median));
         const madValue = calculatePercentile(deviations.sort((a, b) => a - b), 50)!;
+
+        // If MAD is 0 (all values identical or nearly so), no outliers possible
+        if (madValue === 0) {
+            return { filtered: [...sortedArray], outliers: [] };
+        }
 
         // Modified Z-score = 0.6745 * (x - median) / MAD
         const filtered: number[] = [];
