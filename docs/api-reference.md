@@ -1,5 +1,7 @@
 # REST API Reference
 
+> **OpenAPI Spec**: Machine-readable specification is available at [`docs/openapi.yaml`](openapi.yaml)
+
 ## Base URL
 
 ```
