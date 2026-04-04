@@ -3,6 +3,7 @@
  * All API calls go through this module
  */
 
+import type { ZodType } from 'zod';
 import type {
   Connection,
   ConnectionFormData,
@@ -18,6 +19,19 @@ import type {
   QueryEvent,
   CreateEventInput,
 } from '../types';
+import {
+  ConnectionListSchema,
+  ConnectionSchema,
+  ConnectionTestResultSchema,
+  SqlItemListSchema,
+  SqlItemSchema,
+  CategoriesSchema,
+  TestIdSchema,
+  ReportSummaryListSchema,
+  QueryFingerprintListSchema,
+  QueryTimelineSchema,
+  QueryEventSchema,
+} from './schemas/index.js';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -27,7 +41,7 @@ interface ApiResponse<T> {
 
 const BASE_URL = '/api';
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, schema?: ZodType<T>): Promise<T> {
   const opts: RequestInit = {
     method,
     headers: { 'Content-Type': 'application/json' },
@@ -47,21 +61,35 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   if (!res.ok || !data.success) {
     throw new Error(data.error || `HTTP ${res.status}`);
   }
+
+  if (schema) {
+    const parsed = schema.safeParse(data.data);
+    if (!parsed.success) {
+      console.warn(`[API] Response validation failed for ${method} ${path}:`, parsed.error.issues);
+    }
+  }
+
   return data.data;
 }
 
-const get = <T>(path: string): Promise<T> => request<T>('GET', path);
-const post = <T>(path: string, body?: unknown): Promise<T> => request<T>('POST', path, body);
-const put = <T>(path: string, body?: unknown): Promise<T> => request<T>('PUT', path, body);
+function get<T>(path: string, schema?: ZodType<T>): Promise<T> {
+  return request<T>('GET', path, undefined, schema);
+}
+function post<T>(path: string, body?: unknown, schema?: ZodType<T>): Promise<T> {
+  return request<T>('POST', path, body, schema);
+}
+function put<T>(path: string, body?: unknown, schema?: ZodType<T>): Promise<T> {
+  return request<T>('PUT', path, body, schema);
+}
 const del = <T>(path: string): Promise<T> => request<T>('DELETE', path);
 
 // ─── Connections ───────────────────────────────────────────────────────────
 export const connectionsApi = {
-  list: (): Promise<Connection[]> => get<Connection[]>('/connections'),
-  create: (data: ConnectionFormData): Promise<Connection> => post<Connection>('/connections', data),
-  update: (id: string, data: ConnectionFormData): Promise<Connection> => put<Connection>(`/connections/${id}`, data),
+  list: (): Promise<Connection[]> => get('/connections', ConnectionListSchema),
+  create: (data: ConnectionFormData): Promise<Connection> => post('/connections', data, ConnectionSchema),
+  update: (id: string, data: ConnectionFormData): Promise<Connection> => put(`/connections/${id}`, data, ConnectionSchema),
   remove: (id: string): Promise<void> => del<void>(`/connections/${id}`),
-  test: (id: string): Promise<ConnectionTestResult> => post<ConnectionTestResult>(`/connections/${id}/test`),
+  test: (id: string): Promise<ConnectionTestResult> => post('/connections/' + id + '/test', undefined, ConnectionTestResultSchema),
 };
 
 // ─── SQL Library ───────────────────────────────────────────────────────────
@@ -71,27 +99,27 @@ export const sqlApi = {
       Object.entries(filters).filter(([, v]) => v !== undefined && v !== null && v !== '')
     );
     const params = new URLSearchParams(cleaned as Record<string, string>).toString();
-    return get<SqlItem[]>(`/sql${params ? '?' + params : ''}`);
+    return get(`/sql${params ? '?' + params : ''}`, SqlItemListSchema);
   },
-  get: (id: string): Promise<SqlItem> => get<SqlItem>(`/sql/${id}`),
-  categories: (): Promise<string[]> => get<string[]>('/sql/categories'),
-  create: (data: SqlFormData): Promise<SqlItem> => post<SqlItem>('/sql', data),
-  update: (id: string, data: SqlFormData): Promise<SqlItem> => put<SqlItem>(`/sql/${id}`, data),
+  get: (id: string): Promise<SqlItem> => get(`/sql/${id}`, SqlItemSchema),
+  categories: (): Promise<string[]> => get('/sql/categories', CategoriesSchema),
+  create: (data: SqlFormData): Promise<SqlItem> => post('/sql', data, SqlItemSchema),
+  update: (id: string, data: SqlFormData): Promise<SqlItem> => put(`/sql/${id}`, data, SqlItemSchema),
   remove: (id: string): Promise<void> => del<void>(`/sql/${id}`),
 };
 
 // ─── Tests ─────────────────────────────────────────────────────────────────
 export const testsApi = {
-  runSingle: (data: unknown): Promise<{ testId: string }> => post<{ testId: string }>('/tests/single', data),
-  runParallel: (data: unknown): Promise<{ testId: string }> => post<{ testId: string }>('/tests/parallel', data),
-  runComparison: (data: unknown): Promise<{ testId: string }> => post<{ testId: string }>('/tests/comparison', data),
+  runSingle: (data: unknown): Promise<{ testId: string }> => post('/tests/single', data, TestIdSchema),
+  runParallel: (data: unknown): Promise<{ testId: string }> => post('/tests/parallel', data, TestIdSchema),
+  runComparison: (data: unknown): Promise<{ testId: string }> => post('/tests/comparison', data, TestIdSchema),
   listResults: (): Promise<unknown[]> => get<unknown[]>('/tests/results'),
   getResult: (id: string): Promise<unknown> => get<unknown>(`/tests/results/${id}`),
 };
 
 // ─── Reports ───────────────────────────────────────────────────────────────
 export const reportsApi = {
-  list: (): Promise<ReportSummary[]> => get<ReportSummary[]>('/reports'),
+  list: (): Promise<ReportSummary[]> => get('/reports', ReportSummaryListSchema),
   get: (id: string): Promise<ReportDetail> => get<ReportDetail>(`/reports/${id}`),
   exportUrl: (id: string, format: string): string =>
     `${BASE_URL}/reports/${encodeURIComponent(id)}/export?format=${encodeURIComponent(format)}`,
@@ -100,15 +128,15 @@ export const reportsApi = {
 // ─── History ──────────────────────────────────────────────────────────────
 export const historyApi = {
   fingerprints: (): Promise<QueryFingerprintSummary[]> =>
-    get<QueryFingerprintSummary[]>('/history/fingerprints'),
+    get('/history/fingerprints', QueryFingerprintListSchema),
   timeline: (fp: string): Promise<QueryTimeline> =>
-    get<QueryTimeline>(`/history/${encodeURIComponent(fp)}`),
+    get(`/history/${encodeURIComponent(fp)}`, QueryTimelineSchema),
   compare: (fp: string, before: string, after: string): Promise<HistoryComparison> =>
     get<HistoryComparison>(
       `/history/${encodeURIComponent(fp)}/compare?before=${encodeURIComponent(before)}&after=${encodeURIComponent(after)}`
     ),
   createEvent: (data: CreateEventInput): Promise<QueryEvent> =>
-    post<QueryEvent>('/history/events', data),
+    post('/history/events', data, QueryEventSchema),
   deleteEvent: (id: string): Promise<void> =>
     del<void>(`/history/events/${id}`),
 };
