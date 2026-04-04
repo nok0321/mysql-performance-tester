@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
-import { lazy, Suspense, useState, useCallback } from 'react';
+import { lazy, Suspense, useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWebSocket } from './hooks/useWebSocket';
 import type { WsMessage } from './types';
@@ -48,10 +48,10 @@ const PAGE_META_KEYS: Record<string, string> = {
   '/settings': 'settings',
 };
 
-function Sidebar() {
+function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation();
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${open ? ' sidebar--open' : ''}`}>
       <div className="sidebar-logo">
         <h1>⚡ {t('app.logo')}</h1>
         <p>{t('app.logoSub')}</p>
@@ -66,6 +66,7 @@ function Sidebar() {
               to={item.path!}
               className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
               aria-current={undefined}
+              onClick={onClose}
             >
               <span className="nav-icon" aria-hidden="true">{item.icon}</span>
               {t(item.labelKey!)}
@@ -77,7 +78,11 @@ function Sidebar() {
   );
 }
 
-function TopBar({ wsConnected }: { wsConnected: boolean }) {
+function TopBar({ wsConnected, onMenuToggle, menuOpen }: {
+  wsConnected: boolean;
+  onMenuToggle: () => void;
+  menuOpen: boolean;
+}) {
   const { t } = useTranslation();
   const location = useLocation();
   const metaKey = PAGE_META_KEYS[location.pathname];
@@ -85,6 +90,14 @@ function TopBar({ wsConnected }: { wsConnected: boolean }) {
   const subtitle = metaKey ? t(`pageMeta.${metaKey}.subtitle`) : undefined;
   return (
     <header className="topbar">
+      <button
+        className="hamburger-btn"
+        onClick={onMenuToggle}
+        aria-label={t('app.menuToggle')}
+        aria-expanded={menuOpen}
+      >
+        <span className="hamburger-icon" />
+      </button>
       <div>
         <div className="topbar-title">{title}</div>
         {subtitle && <div className="topbar-subtitle">{subtitle}</div>}
@@ -97,9 +110,21 @@ function TopBar({ wsConnected }: { wsConnected: boolean }) {
   );
 }
 
+function RouteChangeHandler({ onRouteChange }: { onRouteChange: () => void }) {
+  const location = useLocation();
+  useEffect(() => {
+    onRouteChange();
+  }, [location.pathname, onRouteChange]);
+  return null;
+}
+
 export default function App() {
   const [wsConnected, setWsConnected] = useState(false);
   const [wsMessages, setWsMessages] = useState<WsMessage[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+  const toggleSidebar = useCallback(() => setSidebarOpen(prev => !prev), []);
 
   const handleWsMessage = useCallback((msg: WsMessage) => {
     if (msg.type === 'connected') {
@@ -112,11 +137,15 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <RouteChangeHandler onRouteChange={closeSidebar} />
       <div className="layout">
         <a href="#main-content" className="skip-to-content">Skip to content</a>
-        <Sidebar />
+        {sidebarOpen && (
+          <div className="sidebar-overlay" onClick={closeSidebar} role="presentation" />
+        )}
+        <Sidebar open={sidebarOpen} onClose={closeSidebar} />
         <div className="main-area">
-          <TopBar wsConnected={wsConnected} />
+          <TopBar wsConnected={wsConnected} onMenuToggle={toggleSidebar} menuOpen={sidebarOpen} />
           <main id="main-content" className="page-content fade-in" role="main">
             <Suspense fallback={<PageLoader />}>
             <Routes>

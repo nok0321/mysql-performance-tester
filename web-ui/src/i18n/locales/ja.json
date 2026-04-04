@@ -19,7 +19,8 @@
     "logoSub": "Performance Tester",
     "wsConnected": "WS Connected",
     "wsDisconnected": "WS Disconnected",
-    "defaultTitle": "MySQL Performance Tester"
+    "defaultTitle": "MySQL Performance Tester",
+    "menuToggle": "ナビゲーションメニューの切替"
   },
   "pageMeta": {
     "connections": { "title": "接続管理", "subtitle": "MySQL 接続先の登録と疎通確認" },
