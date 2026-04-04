@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { connectionsApi } from '../api/client';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import type { Connection, ConnectionFormData, ConnectionTestResult } from '../types';
 
 interface ConnectionFormProps {
@@ -16,10 +17,11 @@ function ConnectionForm({ initial, onSave, onCancel }: ConnectionFormProps) {
     database: '', user: 'root', password: '', poolSize: 10
   });
   const set = (k: keyof ConnectionFormData, v: string | number) => setForm(f => ({ ...f, [k]: v }));
+  const trapRef = useFocusTrap(onCancel);
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
-      <div className="modal fade-in" role="dialog" aria-modal="true" aria-labelledby="modal-title" onClick={e => e.stopPropagation()}>
+      <div ref={trapRef} className="modal fade-in" role="dialog" aria-modal="true" aria-labelledby="modal-title" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h3 className="modal-title" id="modal-title">{initial ? t('connections.editTitle') : t('connections.addTitle')}</h3>
           <button className="modal-close" aria-label="Close" onClick={onCancel}>×</button>
