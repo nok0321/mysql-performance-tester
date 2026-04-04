@@ -154,7 +154,7 @@ wss.on('connection', (ws: SubscribableWebSocket, req) => {
         }
       }
     } catch {
-      // Ignore malformed messages
+      console.warn(`[WS] Malformed message from ${clientIp}: ${raw.toString().slice(0, 100)}`);
     }
   });
 
