@@ -31,11 +31,18 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   const opts: RequestInit = {
     method,
     headers: { 'Content-Type': 'application/json' },
+    signal: AbortSignal.timeout(30_000),
   };
   if (body !== undefined) opts.body = JSON.stringify(body);
 
   const res = await fetch(`${BASE_URL}${path}`, opts);
-  const data: ApiResponse<T> = await res.json();
+
+  let data: ApiResponse<T>;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(`Invalid JSON response from server (HTTP ${res.status})`);
+  }
 
   if (!res.ok || !data.success) {
     throw new Error(data.error || `HTTP ${res.status}`);
