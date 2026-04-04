@@ -1,0 +1,1199 @@
+openapi: 3.1.1
+info:
+  title: MySQL Performance Tester API
+  description: |
+    REST API for the MySQL Performance Tester.
+    Runs on localhost as a development tool for measuring MySQL query performance.
+
+    ## WebSocket Protocol
+    Real-time test progress is delivered via WebSocket at `ws://localhost:3001?token=<token>`.
+    1. Fetch a token via `GET /api/ws-token`
+    2. Connect with the token as a query parameter
+    3. Send `{ "type": "subscribe", "testId": "<id>" }` to receive progress events
+    4. Message types: `connected`, `progress`, `complete`, `error`
+  version: 1.0.0
+  license:
+    name: MIT
+    identifier: MIT
+
+servers:
+  - url: http://localhost:3001/api
+    description: Local development server
+
+tags:
+  - name: Connections
+    description: MySQL connection management (passwords encrypted with AES-256-GCM)
+  - name: SQL Library
+    description: Reusable SQL snippet management
+  - name: Tests
+    description: Performance test execution and results
+  - name: Reports
+    description: Test result viewing and export
+  - name: History
+    description: Query history tracking with timeline events
+  - name: System
+    description: Health check and WebSocket token
+
+# ─── Paths ───────────────────────────────────────────────────────────────────
+
+paths:
+  # ── Connections ──────────────────────────────────────────────────────────
+  /connections:
+    get:
+      tags: [Connections]
+      summary: List all connections
+      description: Returns all saved connections. Passwords are masked.
+      operationId: listConnections
+      responses:
+        "200":
+          description: Connection list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Connection"
+
+    post:
+      tags: [Connections]
+      summary: Create a connection
+      operationId: createConnection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectionInput"
+      responses:
+        "201":
+          description: Connection created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/Connection"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /connections/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionId"
+
+    put:
+      tags: [Connections]
+      summary: Update a connection
+      operationId: updateConnection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectionUpdate"
+      responses:
+        "200":
+          description: Connection updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/Connection"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Connections]
+      summary: Delete a connection
+      operationId: deleteConnection
+      responses:
+        "200":
+          $ref: "#/components/responses/SuccessOnly"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /connections/{id}/test:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionId"
+    post:
+      tags: [Connections]
+      summary: Test connectivity
+      description: Executes `SELECT 1` against the MySQL server. Rate limited to 10 req/min.
+      operationId: testConnection
+      responses:
+        "200":
+          description: Connectivity test result
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/ConnectionTestResult"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          description: MySQL connection failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── SQL Library ──────────────────────────────────────────────────────────
+  /sql:
+    get:
+      tags: [SQL Library]
+      summary: List SQL snippets
+      operationId: listSql
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter by exact category name
+        - name: keyword
+          in: query
+          schema:
+            type: string
+          description: Search in name, sql, description
+      responses:
+        "200":
+          description: SQL snippet list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/SqlItem"
+
+    post:
+      tags: [SQL Library]
+      summary: Create a SQL snippet
+      operationId: createSql
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SqlInput"
+      responses:
+        "201":
+          description: SQL snippet created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/SqlItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /sql/categories:
+    get:
+      tags: [SQL Library]
+      summary: List distinct categories
+      operationId: listSqlCategories
+      responses:
+        "200":
+          description: Category list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          type: string
+                        example: ["analytics", "debug", "perf"]
+
+  /sql/{id}:
+    parameters:
+      - $ref: "#/components/parameters/SqlId"
+
+    get:
+      tags: [SQL Library]
+      summary: Get a SQL snippet
+      operationId: getSql
+      responses:
+        "200":
+          description: SQL snippet detail
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/SqlItem"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: [SQL Library]
+      summary: Update a SQL snippet
+      operationId: updateSql
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SqlUpdate"
+      responses:
+        "200":
+          description: SQL snippet updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/SqlItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [SQL Library]
+      summary: Delete a SQL snippet
+      operationId: deleteSql
+      responses:
+        "200":
+          $ref: "#/components/responses/SuccessOnly"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Tests ────────────────────────────────────────────────────────────────
+  /tests/single:
+    post:
+      tags: [Tests]
+      summary: Run a single-query test
+      description: |
+        Executes asynchronously. Returns 202 with a `testId`.
+        Results delivered via WebSocket. Rate limited to 10 req/min.
+        Max 3 concurrent tests (429 when exceeded).
+      operationId: runSingleTest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SingleTestInput"
+      responses:
+        "202":
+          description: Test accepted
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/TestAccepted"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /tests/parallel:
+    post:
+      tags: [Tests]
+      summary: Run a parallel load test
+      description: |
+        Directory mode (default): reads .sql files from `parallelDirectory`.
+        SQL Library mode: when `sqlIds` is provided (max 50 items).
+      operationId: runParallelTest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParallelTestInput"
+      responses:
+        "202":
+          description: Test accepted
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/TestAccepted"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /tests/comparison:
+    post:
+      tags: [Tests]
+      summary: Run an A/B comparison test
+      operationId: runComparisonTest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ComparisonTestInput"
+      responses:
+        "202":
+          description: Test accepted
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/TestAccepted"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /tests/results:
+    get:
+      tags: [Tests]
+      summary: List past test results
+      operationId: listTestResults
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Test results list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/TestResultListItem"
+                      pagination:
+                        $ref: "#/components/schemas/Pagination"
+
+  /tests/results/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Test result ID
+    get:
+      tags: [Tests]
+      summary: Get individual test result
+      operationId: getTestResult
+      responses:
+        "200":
+          description: Test result JSON
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: object
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Reports ──────────────────────────────────────────────────────────────
+  /reports:
+    get:
+      tags: [Reports]
+      summary: List reports
+      operationId: listReports
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [single, parallel, comparison, batch]
+          description: Filter by report type
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Report list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ReportSummary"
+                      pagination:
+                        $ref: "#/components/schemas/Pagination"
+
+  /reports/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ReportId"
+    get:
+      tags: [Reports]
+      summary: Get individual report
+      description: Supports both single result files and batch directories.
+      operationId: getReport
+      responses:
+        "200":
+          description: Report JSON
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: object
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /reports/{id}/export:
+    parameters:
+      - $ref: "#/components/parameters/ReportId"
+    get:
+      tags: [Reports]
+      summary: Export a report
+      operationId: exportReport
+      parameters:
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [json, csv, html, markdown, excel]
+            default: json
+      responses:
+        "200":
+          description: File download
+          content:
+            application/json: {}
+            text/csv: {}
+            text/html: {}
+            text/markdown: {}
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: {}
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  # ── History ──────────────────────────────────────────────────────────────
+  /history/fingerprints:
+    get:
+      tags: [History]
+      summary: List query fingerprints
+      operationId: listFingerprints
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Fingerprint summary list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/QueryFingerprintSummary"
+                      pagination:
+                        $ref: "#/components/schemas/Pagination"
+
+  /history/{fingerprint}:
+    parameters:
+      - name: fingerprint
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: "^[0-9a-f]{16}([0-9a-f]{16})?$"
+        description: Query fingerprint (16 or 32 hex chars)
+    get:
+      tags: [History]
+      summary: Get query timeline
+      operationId: getQueryTimeline
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Query timeline with entries and events
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/QueryTimeline"
+                      pagination:
+                        $ref: "#/components/schemas/Pagination"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /history/{fingerprint}/compare:
+    parameters:
+      - name: fingerprint
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [History]
+      summary: Compare two test runs
+      operationId: compareTestRuns
+      parameters:
+        - name: before
+          in: query
+          required: true
+          schema:
+            type: string
+          description: testId of the "before" run
+        - name: after
+          in: query
+          required: true
+          schema:
+            type: string
+          description: testId of the "after" run
+      responses:
+        "200":
+          description: Comparison delta
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/HistoryComparison"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /history/events:
+    post:
+      tags: [History]
+      summary: Create a timeline event
+      operationId: createEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEventInput"
+      responses:
+        "201":
+          description: Event created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/QueryEvent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /history/events/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    delete:
+      tags: [History]
+      summary: Delete a timeline event
+      operationId: deleteEvent
+      responses:
+        "200":
+          $ref: "#/components/responses/SuccessOnly"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── System ───────────────────────────────────────────────────────────────
+  /health:
+    get:
+      tags: [System]
+      summary: Health check
+      operationId: healthCheck
+      responses:
+        "200":
+          description: Server health
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
+                  wsClients:
+                    type: integer
+                    description: Number of connected WebSocket clients
+
+  /ws-token:
+    get:
+      tags: [System]
+      summary: Generate WebSocket token
+      description: Single-use token, expires in 60 seconds. Rate limited to 20 req/min.
+      operationId: generateWsToken
+      responses:
+        "200":
+          description: Token generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  token:
+                    type: string
+                    format: uuid
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+# ─── Components ────────────────────────────────────────────────────────────
+
+components:
+  # ── Parameters ─────────────────────────────────────────────────────────
+  parameters:
+    ConnectionId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Connection ID (conn_*)
+
+    SqlId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: SQL snippet ID (sql_*)
+
+    ReportId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Report / test result ID
+
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 20
+        maximum: 100
+      description: Items per page
+
+    Offset:
+      name: offset
+      in: query
+      schema:
+        type: integer
+        default: 0
+      description: Number of items to skip
+
+  # ── Responses ──────────────────────────────────────────────────────────
+  responses:
+    SuccessOnly:
+      description: Success with no data
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: true
+
+    BadRequest:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    RateLimited:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Schemas ────────────────────────────────────────────────────────────
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    # ── Connection ─────────────────────────────────────────────────────
+    Connection:
+      type: object
+      properties:
+        id:
+          type: string
+          example: conn_abc123
+        name:
+          type: string
+          example: Production DB
+        host:
+          type: string
+          example: 192.168.1.100
+        port:
+          type: integer
+          example: 3306
+        database:
+          type: string
+          example: mydb
+        user:
+          type: string
+          example: admin
+        passwordMasked:
+          type: string
+          example: "••••••••"
+        poolSize:
+          type: integer
+          example: 10
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ConnectionInput:
+      type: object
+      required: [host, database, user]
+      properties:
+        name:
+          type: string
+        host:
+          type: string
+        port:
+          type: integer
+          default: 3306
+        database:
+          type: string
+        user:
+          type: string
+        password:
+          type: string
+        poolSize:
+          type: integer
+          default: 10
+
+    ConnectionUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        host:
+          type: string
+        port:
+          type: integer
+        database:
+          type: string
+        user:
+          type: string
+        password:
+          type: string
+        poolSize:
+          type: integer
+
+    ConnectionTestResult:
+      type: object
+      properties:
+        connected:
+          type: boolean
+        serverVersion:
+          type: string
+          example: "8.0.36"
+        supportsExplainAnalyze:
+          type: boolean
+
+    # ── SQL Library ────────────────────────────────────────────────────
+    SqlItem:
+      type: object
+      properties:
+        id:
+          type: string
+          example: sql_abc123
+        name:
+          type: string
+        sql:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+        tags:
+          type: string
+          description: JSON-encoded array of tag strings
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SqlInput:
+      type: object
+      required: [sql]
+      properties:
+        sql:
+          type: string
+          maxLength: 100000
+        name:
+          type: string
+          default: Untitled SQL
+        category:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    SqlUpdate:
+      type: object
+      properties:
+        sql:
+          type: string
+          maxLength: 100000
+        name:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    # ── Tests ──────────────────────────────────────────────────────────
+    TestConfig:
+      type: object
+      description: Common test configuration fields
+      properties:
+        connectionId:
+          type: string
+        testName:
+          type: string
+        testIterations:
+          type: integer
+          default: 20
+          minimum: 1
+          maximum: 10000
+        enableWarmup:
+          type: boolean
+          default: true
+        warmupPercentage:
+          type: integer
+          default: 20
+        removeOutliers:
+          type: boolean
+          default: false
+        outlierMethod:
+          type: string
+          default: iqr
+          enum: [iqr, zscore, mad]
+        enableExplainAnalyze:
+          type: boolean
+          default: true
+        enableOptimizerTrace:
+          type: boolean
+          default: false
+        enableBufferPoolMonitoring:
+          type: boolean
+          default: true
+        enablePerformanceSchema:
+          type: boolean
+          default: false
+
+    SingleTestInput:
+      allOf:
+        - $ref: "#/components/schemas/TestConfig"
+        - type: object
+          required: [connectionId, sqlText]
+          properties:
+            sqlText:
+              type: string
+
+    ParallelTestInput:
+      allOf:
+        - $ref: "#/components/schemas/TestConfig"
+        - type: object
+          required: [connectionId]
+          properties:
+            parallelThreads:
+              type: integer
+              default: 5
+              minimum: 1
+              maximum: 200
+            parallelDirectory:
+              type: string
+              default: ./parallel
+            sqlIds:
+              type: array
+              items:
+                type: string
+              maxItems: 50
+              description: SQL Library snippet IDs (overrides directory mode)
+
+    ComparisonTestInput:
+      allOf:
+        - $ref: "#/components/schemas/TestConfig"
+        - type: object
+          required: [connectionId, sqlTextA, sqlTextB]
+          properties:
+            sqlTextA:
+              type: string
+            sqlTextB:
+              type: string
+            testNameA:
+              type: string
+              default: Query A
+            testNameB:
+              type: string
+              default: Query B
+            executionMode:
+              type: string
+              enum: [sequential, parallel]
+              default: sequential
+
+    TestAccepted:
+      type: object
+      properties:
+        testId:
+          type: string
+          example: test_550e8400-e29b-41d4-a716-446655440000
+
+    TestResultListItem:
+      type: object
+      properties:
+        id:
+          type: string
+        fileName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        size:
+          type: integer
+          description: File size in bytes
+
+    # ── Reports ────────────────────────────────────────────────────────
+    ReportSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [single, parallel, comparison, batch]
+        testName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        size:
+          type: integer
+
+    # ── History ────────────────────────────────────────────────────────
+    QueryFingerprintSummary:
+      type: object
+      properties:
+        queryFingerprint:
+          type: string
+        queryText:
+          type: string
+        latestTestName:
+          type: string
+        runCount:
+          type: integer
+        latestRunAt:
+          type: string
+          format: date-time
+
+    QueryHistoryEntry:
+      type: object
+      properties:
+        testId:
+          type: string
+        testName:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        statistics:
+          type: object
+          description: Test statistics (basic, percentiles, spread, count, distribution)
+        explainAccessType:
+          type: string
+
+    QueryEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        queryFingerprint:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+          enum: [index_added, index_removed, schema_change, config_change, custom]
+        timestamp:
+          type: string
+          format: date-time
+
+    QueryTimeline:
+      type: object
+      properties:
+        queryFingerprint:
+          type: string
+        queryText:
+          type: string
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/QueryHistoryEntry"
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/QueryEvent"
+
+    CreateEventInput:
+      type: object
+      required: [queryFingerprint, label, type]
+      properties:
+        queryFingerprint:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+          enum: [index_added, index_removed, schema_change, config_change, custom]
+        timestamp:
+          type: string
+          format: date-time
+
+    ComparisonDelta:
+      type: object
+      properties:
+        meanDiff:
+          type: number
+        meanDiffPercent:
+          type: number
+        medianDiff:
+          type: number
+        medianDiffPercent:
+          type: number
+        p50Diff:
+          type: number
+        p50DiffPercent:
+          type: number
+        p95Diff:
+          type: number
+        p95DiffPercent:
+          type: number
+        p99Diff:
+          type: number
+        p99DiffPercent:
+          type: number
+        winner:
+          type: string
+          enum: [A, B, tie]
+        summary:
+          type: string
+
+    HistoryComparison:
+      type: object
+      properties:
+        before:
+          type: object
+          description: Statistics of the "before" run
+        after:
+          type: object
+          description: Statistics of the "after" run
+        delta:
+          $ref: "#/components/schemas/ComparisonDelta"
