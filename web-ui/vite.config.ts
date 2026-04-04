@@ -9,6 +9,17 @@ export default defineConfig({
       '@shared/types': path.resolve(__dirname, '../lib/types/index.ts'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          recharts: ['recharts'],
+          i18n: ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     proxy: {

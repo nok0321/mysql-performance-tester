@@ -1,18 +1,19 @@
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
-import { useState, useCallback } from 'react';
+import { lazy, Suspense, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWebSocket } from './hooks/useWebSocket';
 import type { WsMessage } from './types';
+import PageLoader from './components/PageLoader';
 
-import Connections from './pages/Connections';
-import SqlLibrary from './pages/SqlLibrary';
-import SingleTest from './pages/SingleTest';
-import ParallelTest from './pages/ParallelTest';
-import Reports from './pages/Reports';
-import Analytics from './pages/Analytics';
-import ComparisonTest from './pages/ComparisonTest';
-import Settings from './pages/Settings';
-import QueryHistory from './pages/QueryHistory';
+const Connections = lazy(() => import('./pages/Connections'));
+const SqlLibrary = lazy(() => import('./pages/SqlLibrary'));
+const SingleTest = lazy(() => import('./pages/SingleTest'));
+const ParallelTest = lazy(() => import('./pages/ParallelTest'));
+const Reports = lazy(() => import('./pages/Reports'));
+const Analytics = lazy(() => import('./pages/Analytics'));
+const ComparisonTest = lazy(() => import('./pages/ComparisonTest'));
+const Settings = lazy(() => import('./pages/Settings'));
+const QueryHistory = lazy(() => import('./pages/QueryHistory'));
 import NotFound from './pages/NotFound';
 
 type NavItem =
@@ -117,6 +118,7 @@ export default function App() {
         <div className="main-area">
           <TopBar wsConnected={wsConnected} />
           <main id="main-content" className="page-content fade-in" role="main">
+            <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<SingleTest wsMessages={wsMessages} subscribeTestId={subscribeTestId} />} />
               <Route path="/connections" element={<Connections />} />
@@ -130,6 +132,7 @@ export default function App() {
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </Suspense>
           </main>
         </div>
       </div>
