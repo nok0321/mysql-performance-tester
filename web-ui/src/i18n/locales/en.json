@@ -302,5 +302,9 @@
     "deltaP95": "P95",
     "deltaP99": "P99",
     "deltaMs": "Delta (ms)"
+  },
+  "notFound": {
+    "message": "The page you are looking for does not exist.",
+    "backHome": "Back to Home"
   }
 }

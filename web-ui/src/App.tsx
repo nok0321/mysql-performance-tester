@@ -13,6 +13,7 @@ import Analytics from './pages/Analytics';
 import ComparisonTest from './pages/ComparisonTest';
 import Settings from './pages/Settings';
 import QueryHistory from './pages/QueryHistory';
+import NotFound from './pages/NotFound';
 
 type NavItem =
   | { section: string; path?: undefined; icon?: undefined; labelKey?: undefined }
@@ -127,6 +128,7 @@ export default function App() {
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/history" element={<QueryHistory />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
         </div>
